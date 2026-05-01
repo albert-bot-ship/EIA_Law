@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>後台管理 | 環評法律資料庫</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .paste-zone textarea {
+      width: 100%;
+      min-height: 420px;
+      background: var(--m-black);
+      border: 2px dashed var(--m-border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      color: var(--m-white);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.8;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .paste-zone textarea:focus {
+      border-color: var(--m-blue);
+      border-style: solid;
+      box-shadow: 0 0 0 4px rgba(28,105,212,0.1);
+    }
+    .paste-zone textarea::placeholder { color: var(--m-grey); line-height: 2; }
+
+    .parse-preview {
+      background: var(--m-black);
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .preview-header {
+      background: var(--m-surface);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--m-border);
+      flex-wrap: wrap;
+    }
+    .preview-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--m-grey);
+    }
+    .preview-stats {
+      display: flex;
+      gap: 16px;
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .preview-stat { display: flex; align-items: center; gap: 5px; color: var(--m-grey); }
+    .preview-stat strong { color: var(--m-white); }
+    .preview-body { max-height: 480px; overflow-y: auto; padding: 16px 18px; }
+    .preview-chapter { margin-bottom: 20px; }
+    .preview-chapter-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--m-blue-lt);
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .preview-chapter-title::after { content:''; flex:1; height:1px; background:var(--m-border); }
+    .preview-article {
+      display: flex;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      margin-bottom: 4px;
+      background: var(--m-surface);
+      border: 1px solid var(--m-border);
+    }
+    .preview-art-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--m-blue-lt);
+      min-width: 60px;
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+    .preview-art-content {
+      font-size: 12px;
+      color: var(--m-grey-lt);
+      line-height: 1.7;
+      white-space: pre-line;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Steps */
+    .step-indicator { display:flex; align-items:center; margin-bottom:28px; }
+    .step { display:flex; align-items:center; gap:8px; flex:1; }
+    .step-num {
+      width:28px; height:28px; border-radius:50%;
+      background:var(--m-surface); border:2px solid var(--m-border);
+      display:flex; align-items:center; justify-content:center;
+      font-family:var(--font-display); font-size:13px; font-weight:700;
+      color:var(--m-grey); flex-shrink:0; transition:all 0.2s;
+    }
+    .step.active .step-num { background:var(--m-blue); border-color:var(--m-blue); color:#fff; box-shadow:0 0 12px rgba(28,105,212,0.5); }
+    .step.done   .step-num { background:rgba(28,212,80,0.15); border-color:#30E060; color:#30E060; }
+    .step-label  { font-family:var(--font-display); font-size:12px; font-weight:600; color:var(--m-grey); letter-spacing:0.5px; }
+    .step.active .step-label { color:var(--m-blue-lt); }
+    .step.done   .step-label { color:#30E060; }
+    .step-line   { flex:1; height:1px; background:var(--m-border); max-width:40px; }
+
+    /* Meta form grid */
+    .meta-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
+    .meta-grid-2 { display:grid; grid-template-columns:2fr 1fr; gap:14px; margin-bottom:18px; }
+
+    /* Parse hint */
+    .parse-hint {
+      background:var(--m-surface);
+      border:1px solid var(--m-border);
+      border-left:3px solid var(--m-blue);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding:12px 16px;
+      font-size:12px;
+      color:var(--m-grey-lt);
+      line-height:1.9;
+      margin-bottom:16px;
+    }
+    .parse-hint code {
+      font-family:var(--font-mono);
+      color:var(--m-blue-lt);
+      background:rgba(28,105,212,0.1);
+      padding:1px 5px; border-radius:3px; font-size:11px;
+    }
+    .action-row { display:flex; align-items:center; gap:12px; margin-top:16px; flex-wrap:wrap; }
+    .divider { height:1px; background:var(--m-border); margin:28px 0; }
+
+    /* Laws table */
+    .laws-table { width:100%; border-collapse:collapse; }
+    .laws-table th {
+      font-family:var(--font-display); font-size:10px; font-weight:700;
+      letter-spacing:2px; text-transform:uppercase; color:var(--m-grey);
+      padding:10px 14px; text-align:left;
+      border-bottom:1px solid var(--m-border); background:var(--m-surface);
+    }
+    .laws-table td { padding:12px 14px; border-bottom:1px solid var(--m-border); vertical-align:middle; font-size:13px; }
+    .laws-table tr:last-child td { border-bottom:none; }
+    .laws-table tr:hover td { background:var(--m-surface); }
+    .td-title { color:var(--m-white); font-weight:500; }
+    .td-cat   { font-size:11px; font-family:var(--font-mono); color:var(--m-grey); }
+    .td-date  { font-size:11px; font-family:var(--font-mono); color:var(--m-grey); white-space:nowrap; }
+    .td-count { font-family:var(--font-mono); font-size:12px; color:var(--m-grey-lt); text-align:center; }
+    .td-actions { white-space:nowrap; }
+    .no-data-row td { text-align:center; padding:40px; color:var(--m-grey); }
+
+    @media (max-width:700px) {
+      .meta-grid   { grid-template-columns:1fr; }
+      .meta-grid-2 { grid-template-columns:1fr; }
+      .step-line   { display:none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════ HEADER ══════ -->
+<header class="site-header">
+  <div class="m-stripe"></div>
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-badge">M</div>
+      <div class="logo-text">
+        <span class="logo-title">環評法律資料庫</span>
+        <span class="logo-sub">EIA Legal Database</span>
+      </div>
+    </a>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link">← 回前台</a>
+      <a href="admin.html" class="nav-link active">後台管理</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ══════ MAIN ══════ -->
+<div class="admin-layout">
+
+  <div class="admin-header-section">
+    <div class="m-stripe-thin" style="margin-bottom:20px;"></div>
+    <h1 class="admin-page-title">一鍵<span>貼入法條</span></h1>
+    <p class="admin-page-sub">將整部法律全文複製後貼入，系統自動解析章節與條文，三步完成新增</p>
+  </div>
+
+  <!-- Step Indicator -->
+  <div class="step-indicator">
+    <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">貼入法條</div></div>
+    <div class="step-line"></div>
+    <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">確認解析</div></div>
+    <div class="step-line"></div>
+    <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">填寫資訊</div></div>
+    <div class="step-line"></div>
+    <div class="step" id="step4"><div class="step-num">4</div><div class="step-label">儲存完成</div></div>
+  </div>
+
+  <!-- ── CARD 1：貼入 ── -->
+  <div class="form-card" id="cardPaste">
+    <div class="form-card-header">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title">📋 貼入法律全文</span>
+    </div>
+    <div class="form-card-body">
+
+      <div class="parse-hint">
+        💡 直接將整部法律的文字複製後貼入，系統自動識別：<br>
+        &nbsp;&nbsp;• <code>第一章 總則</code>、<code>第二章 評估</code> → 章標題<br>
+        &nbsp;&nbsp;• <code>第 1 條</code>、<code>第一條</code> → 條文號碼<br>
+        &nbsp;&nbsp;• 其後所有文字 → 條文內容（多行自動合併）<br>
+        &nbsp;&nbsp;• 若法規無章節，所有條文自動歸入「本文」
+      </div>
+
+      <div class="paste-zone">
+        <textarea id="pasteArea"
+          placeholder="在此貼入法律全文...
+
+範例格式：
+
+環境影響評估法
+
+第一章  總則
+
+第 1 條
+為預防及減輕開發行為對環境造成不良影響，藉以達成環境保護之目的，
+特制定本法。本法未規定者，適用其他有關法律之規定。
+
+第 2 條
+本法專用名詞定義如下：
+一、開發行為：指依第五條規定之行為。
+二、環境影響評估：指開發行為或政府政策對環境...
+
+第二章  評估、審查及監督
+
+第 3 條
+各級政府及目的事業主管機關在該管轄範圍內，應推動落實環境影響評估工作。
+"></textarea>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="parseContent()">⚙️ 自動解析</button>
+        <button class="btn btn-secondary" onclick="clearPaste()">✕ 清除</button>
+        <span id="charCount" style="margin-left:auto;font-family:var(--font-mono);font-size:12px;color:var(--m-grey);">0 字元</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CARD 2：預覽 ── -->
+  <div class="form-card" id="cardPreview" style="display:none;">
+    <div class="form-card-header">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title">🔍 解析結果預覽</span>
+    </div>
+    <div class="form-card-body">
+      <div class="parse-preview">
+        <div class="preview-header">
+          <span class="preview-title">解析結果</span>
+          <div class="preview-stats">
+            <div class="preview-stat">章節 <strong id="statChapters">0</strong></div>
+            <div class="preview-stat">條文 <strong id="statArticlesP">0</strong></div>
+            <div class="preview-stat">字數 <strong id="statChars">0</strong></div>
+          </div>
+        </div>
+        <div class="preview-body" id="previewBody"></div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="goToMeta()">✅ 確認，填寫資訊 →</button>
+        <button class="btn btn-secondary" onclick="backToPaste()">← 重新貼入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CARD 3：資訊 ── -->
+  <div class="form-card" id="cardMeta" style="display:none;">
+    <div class="form-card-header">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title" id="metaCardTitle">📝 填寫法規資訊</span>
+    </div>
+    <div class="form-card-body">
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">法規名稱 *</label>
+        <input type="text" id="fTitle" class="form-input" placeholder="例：環境影響評估法" />
+      </div>
+
+      <div class="meta-grid">
+        <div class="form-group">
+          <label class="form-label">法規類別 *</label>
+          <select id="fCategory" class="form-select">
+            <option value="">請選擇類別</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">現行狀態</label>
+          <select id="fStatus" class="form-select">
+            <option value="現行">現行</option>
+            <option value="廢止">廢止</option>
+            <option value="草案">草案</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">最新修正日期</label>
+          <input type="text" id="fLastAmended" class="form-input" placeholder="例：112年5月10日" />
+        </div>
+      </div>
+
+      <div class="meta-grid-2">
+        <div class="form-group">
+          <label class="form-label">法規字號 / 制定日期</label>
+          <input type="text" id="fLawNumber" class="form-input" placeholder="例：中華民國 83 年 12 月 30 日" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">主管機關</label>
+          <input type="text" id="fAuthority" class="form-input" placeholder="例：環境部" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">法規摘要（選填，留空則自動取第一條）</label>
+        <textarea id="fSummary" class="form-textarea" rows="2" placeholder="簡述立法目的或重點..."></textarea>
+      </div>
+
+      <!-- ── Attachments ── -->
+      <div style="margin-top:20px;">
+        <div class="form-card-header" style="margin:0 -24px 14px;padding-left:24px;">
+          <div class="m-stripe-vert"></div>
+          <span class="form-card-title">📎 上傳附件</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--m-grey);font-family:var(--font-mono);">PDF、Word、圖片等，單檔上限 8MB</span>
+        </div>
+
+        <div class="upload-dropzone" id="dropzone"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+          <input type="file" id="fileInput" multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.zip,.txt,.csv"
+            onchange="onFileChange(event)" />
+          <div class="upload-drop-icon">📂</div>
+          <div class="upload-drop-title">拖放檔案到此，或點擊選擇</div>
+          <div class="upload-drop-sub">支援 <code>PDF</code> <code>Word</code> <code>Excel</code> <code>PPT</code> <code>圖片</code> <code>ZIP</code> 等格式</div>
+        </div>
+        <div class="upload-progress" id="uploadProgress">
+          <div class="upload-progress-bar" id="uploadProgressBar"></div>
+        </div>
+
+        <div class="attach-list" id="attachList"></div>
+      </div>
+
+      <div class="action-row" style="border-top:1px solid var(--m-border);padding-top:20px;margin-top:20px;">
+        <button class="btn btn-primary" onclick="saveLaw()">💾 儲存至資料庫</button>
+        <button class="btn btn-secondary" onclick="backToPreview()">← 回預覽</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ LAW LIST ══════ -->
+  <div class="divider"></div>
+
+  <div class="form-card">
+    <div class="form-card-header" style="flex-wrap:wrap;gap:10px;">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title" style="font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">📋 已儲存的法規</span>
+      <span id="lawCount" style="margin-left:auto;font-size:12px;color:var(--m-grey);font-family:var(--font-mono);">0 筆</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="downloadJSON()">⬇️ 下載 laws.json</button>
+        <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="toggleImport()">📤 匯入 JSON</button>
+      </div>
+    </div>
+
+    <div id="importArea" style="display:none;padding:16px 20px;border-bottom:1px solid var(--m-border);background:var(--m-surface);">
+      <label class="form-label" style="display:block;margin-bottom:8px;">貼入 laws.json 內容（將覆蓋所有現有資料）</label>
+      <textarea id="importText" class="form-textarea" rows="5" placeholder="貼入 JSON 內容..."></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="btn btn-danger" onclick="importJSON()">⚠️ 確認匯入（覆蓋）</button>
+        <button class="btn btn-secondary" onclick="toggleImport()">取消</button>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="laws-table">
+        <thead>
+          <tr>
+            <th>法規名稱</th>
+            <th>類別</th>
+            <th>最新修正</th>
+            <th style="text-align:center;">章節</th>
+            <th style="text-align:center;">條文</th>
+            <th style="text-align:center;">附件</th>
+            <th style="text-align:center;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="lawsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /admin-layout -->
+
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon">✅</span>
+  <span id="toastMsg">已儲存</span>
+</div>
+
+<script>
+// ── State ──
+let DB = { categories: [], laws: [] };
+let parsedChapters = [];
+let editingId      = null;
+let pendingAttachments = []; // [{id, name, type, size, dataKey, data}]
+
+// ── Init ──
+async function init() {
+  try {
+    const res = await fetch('laws.json');
+    if (res.ok) DB = await res.json();
+  } catch(_) {}
+  const saved = localStorage.getItem('eia-db');
+  if (saved) { try { DB = JSON.parse(saved); } catch(_) {} }
+  // 預設類別清單（含新增項目）
+  const DEFAULT_CATS = [
+    { id:'eia-main',        name:'環境影響評估法',                           icon:'⚖️',  color:'blue'   },
+    { id:'eia-enforcement', name:'環境影響評估法施行細則',                    icon:'📋',  color:'red'    },
+    { id:'pollution',       name:'開發行為應實施環境影響評估細目及範圍認定標準', icon:'🏭',  color:'purple' },
+    { id:'nature',          name:'開發行為環境影響評估作業準則',               icon:'🌿',  color:'blue'   },
+    { id:'water',           name:'水資源相關法規',                            icon:'💧',  color:'red'    },
+    { id:'air',             name:'空氣品質相關法規',                          icon:'🌬️', color:'purple' },
+    { id:'waste',           name:'廢棄物相關法規',                            icon:'🗑️', color:'green'  },
+    { id:'noise',           name:'噪音污染相關法規',                          icon:'🔊',  color:'orange' },
+  ];
+  if (!DB.categories?.length) {
+    // 完全沒有類別 → 直接套用預設
+    DB.categories = DEFAULT_CATS;
+  } else {
+    // 有舊資料 → 把缺少的新類別補進去，不覆蓋已有的
+    const existingIds = new Set(DB.categories.map(c => c.id));
+    DEFAULT_CATS.forEach(cat => {
+      if (!existingIds.has(cat.id)) DB.categories.push(cat);
+    });
+  }
+  saveDB(); // 把更新後的類別同步回 localStorage
+  populateCatSelect();
+  renderTable();
+  document.getElementById('pasteArea').addEventListener('input', () => {
+    document.getElementById('charCount').textContent =
+      document.getElementById('pasteArea').value.length.toLocaleString() + ' 字元';
+  });
+}
+
+function populateCatSelect() {
+  const sel = document.getElementById('fCategory');
+  sel.innerHTML = '<option value="">請選擇類別</option>';
+  DB.categories.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.icon + ' ' + c.name;
+    sel.appendChild(o);
+  });
+}
+
+// ── Steps ──
+function setStep(n) {
+  [1,2,3,4].forEach(i => {
+    const el  = document.getElementById('step' + i);
+    const num = el.querySelector('.step-num');
+    el.className = 'step' + (i===n?' active': i<n?' done':'');
+    num.textContent = i < n ? '✓' : i;
+  });
+}
+
+// ── Parse ──
+function parseContent() {
+  const raw = document.getElementById('pasteArea').value.trim();
+  if (!raw) { showToast('⚠️','請先貼入法條內容',true); return; }
+
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章\s*.{0,50}$/;
+  const reArticle = /^第\s*([零一二三四五六七八九十百千\d]+(?:[-之]\d+)?)\s*條/;
+
+  const lines = raw.split(/\r?\n/);
+  const chapters = [];
+  let curChapter = null, curArticle = null;
+
+  function flushArt() {
+    if (curArticle && curChapter) {
+      curArticle.content = curArticle.content.join('\n').trim();
+      curChapter.articles.push(curArticle);
+      curArticle = null;
+    }
+  }
+  function flushCh() {
+    flushArt();
+    if (curChapter) { chapters.push(curChapter); curChapter = null; }
+  }
+  function ensureCh() {
+    if (!curChapter) curChapter = { title:'本文', articles:[] };
+  }
+
+  let detectedTitle = '', titleIdx = -1;
+  for (let i = 0; i < Math.min(lines.length, 6); i++) {
+    const l = lines[i].trim();
+    if (l && !reChapter.test(l) && !reArticle.test(l) && l.length < 40) {
+      detectedTitle = l; titleIdx = i; break;
+    }
+  }
+
+  lines.forEach((rawLine, idx) => {
+    const line = rawLine.trim();
+    if (!line || idx === titleIdx) return;
+    if (reChapter.test(line)) { flushCh(); curChapter = { title: line, articles: [] }; return; }
+    if (reArticle.test(line)) {
+      flushArt(); ensureCh();
+      const m = line.match(/^(第\s*[^\s條]+\s*條)/);
+      curArticle = { number: m ? m[1].trim() : line, content: [] };
+      const rest = line.replace(/^第\s*[^\s條]+\s*條\s*/, '').trim();
+      if (rest) curArticle.content.push(rest);
+      return;
+    }
+    if (curArticle) curArticle.content.push(line);
+    else if (curChapter?.articles.length)
+      curChapter.articles[curChapter.articles.length - 1].content += '\n' + line;
+  });
+  flushCh();
+
+  if (!chapters.length || chapters.every(c => !c.articles.length)) {
+    showToast('⚠️','未能識別任何條文，請確認格式',true); return;
+  }
+
+  parsedChapters = chapters;
+  if (detectedTitle && !document.getElementById('fTitle').value)
+    document.getElementById('fTitle').value = detectedTitle;
+
+  renderPreview(chapters);
+  show('cardPreview'); setStep(2);
+  document.getElementById('cardPreview').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function renderPreview(chapters) {
+  let totalArt = 0, html = '';
+  chapters.forEach(ch => {
+    totalArt += ch.articles.length;
+    html += `<div class="preview-chapter"><div class="preview-chapter-title">${esc(ch.title)}</div>`;
+    ch.articles.forEach(a => {
+      html += `<div class="preview-article">
+        <div class="preview-art-num">${esc(a.number)}</div>
+        <div class="preview-art-content">${esc(a.content)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('previewBody').innerHTML = html;
+  document.getElementById('statChapters').textContent  = chapters.length;
+  document.getElementById('statArticlesP').textContent = totalArt;
+  document.getElementById('statChars').textContent =
+    document.getElementById('pasteArea').value.length.toLocaleString();
+}
+
+// ── Navigation ──
+function goToMeta()      { show('cardMeta');    setStep(3); scrollToCard('cardMeta'); }
+function backToPaste()   { show('cardPaste');   setStep(1); scrollToCard('cardPaste'); }
+function backToPreview() { show('cardPreview'); setStep(2); scrollToCard('cardPreview'); }
+function show(id) {
+  ['cardPaste','cardPreview','cardMeta'].forEach(c =>
+    document.getElementById(c).style.display = c===id ? '' : 'none');
+}
+function scrollToCard(id) { document.getElementById(id).scrollIntoView({ behavior:'smooth', block:'start' }); }
+
+// ══════════════════════════════
+// ATTACHMENT UPLOAD
+// ══════════════════════════════
+const FILE_ICONS = {
+  pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊',
+  ppt:'📋', pptx:'📋', jpg:'🖼️', jpeg:'🖼️', png:'🖼️',
+  gif:'🖼️', webp:'🖼️', zip:'🗜️', txt:'📃', csv:'📊',
+};
+const MAX_SIZE = 8 * 1024 * 1024; // 8 MB
+
+function fileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  return FILE_ICONS[ext] || '📎';
+}
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1048576)    return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.add('dragover');
+}
+function onDragLeave() {
+  document.getElementById('dropzone').classList.remove('dragover');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('dragover');
+  processFiles(Array.from(e.dataTransfer.files));
+}
+function onFileChange(e) {
+  processFiles(Array.from(e.target.files));
+  e.target.value = ''; // reset so same file can be re-added
+}
+
+function processFiles(files) {
+  if (!files.length) return;
+  const progress = document.getElementById('uploadProgress');
+  const bar      = document.getElementById('uploadProgressBar');
+  progress.style.display = 'block';
+  let done = 0;
+
+  files.forEach(file => {
+    if (file.size > MAX_SIZE) {
+      showToast('⚠️', `「${file.name}」超過 8MB 限制，已跳過`, true);
+      done++;
+      if (done === files.length) { setTimeout(() => progress.style.display='none', 600); }
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const data = e.target.result; // base64 data URL
+      const attach = {
+        id:      Date.now() + Math.random(),
+        name:    file.name,
+        type:    file.type || 'application/octet-stream',
+        size:    file.size,
+        dataKey: null,  // will be set on save
+        data:    data,  // temporary, stored separately on save
+      };
+      pendingAttachments.push(attach);
+      renderAttachList();
+      done++;
+      bar.style.width = (done / files.length * 100) + '%';
+      if (done === files.length) {
+        setTimeout(() => { progress.style.display='none'; bar.style.width='0%'; }, 600);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderAttachList() {
+  const list = document.getElementById('attachList');
+  if (!pendingAttachments.length) { list.innerHTML = ''; return; }
+  list.innerHTML = '';
+  pendingAttachments.forEach((a, i) => {
+    const item = document.createElement('div');
+    item.className = 'attach-item';
+    item.innerHTML = `
+      <span class="attach-type-icon">${fileIcon(a.name)}</span>
+      <div class="attach-info">
+        <div class="attach-name" title="${esc(a.name)}">${esc(a.name)}</div>
+        <div class="attach-meta">${formatSize(a.size)} · ${a.type}</div>
+      </div>
+      <span class="attach-status ok">✓ 已載入</span>
+      <button class="attach-del" onclick="removeAttach(${i})" title="移除">🗑</button>`;
+    list.appendChild(item);
+  });
+}
+
+function removeAttach(i) {
+  pendingAttachments.splice(i, 1);
+  renderAttachList();
+}
+
+// Load existing attachments when editing
+function loadExistingAttachments(law) {
+  pendingAttachments = [];
+  (law.attachments || []).forEach(meta => {
+    try {
+      const data = localStorage.getItem(meta.dataKey);
+      if (data) {
+        pendingAttachments.push({
+          id: meta.id, name: meta.name,
+          type: meta.type, size: meta.size,
+          dataKey: meta.dataKey, data
+        });
+      }
+    } catch(_) {}
+  });
+  renderAttachList();
+}
+
+// ── Save ──
+function saveLaw() {
+  const title    = document.getElementById('fTitle').value.trim();
+  const category = document.getElementById('fCategory').value;
+  if (!title)    { showToast('⚠️','請填寫法規名稱',true); return; }
+  if (!category) { showToast('⚠️','請選擇法規類別',true); return; }
+
+  let summary = document.getElementById('fSummary').value.trim();
+  if (!summary && parsedChapters[0]?.articles[0])
+    summary = parsedChapters[0].articles[0].content.slice(0,80) + '…';
+
+  const lawId = editingId || Date.now();
+
+  // --- Save attachment files to localStorage ---
+  // First, clean up old attachments if editing
+  if (editingId) {
+    const oldLaw = DB.laws.find(l => l.id === editingId);
+    if (oldLaw?.attachments) {
+      const keepKeys = new Set(pendingAttachments.map(a => a.dataKey).filter(Boolean));
+      oldLaw.attachments.forEach(meta => {
+        if (!keepKeys.has(meta.dataKey)) {
+          try { localStorage.removeItem(meta.dataKey); } catch(_) {}
+        }
+      });
+    }
+  }
+
+  const attachmentsMeta = [];
+  pendingAttachments.forEach(a => {
+    let dataKey = a.dataKey;
+    if (!dataKey) {
+      // New file — store data separately
+      dataKey = `eia-file-${lawId}-${a.id}`;
+      try { localStorage.setItem(dataKey, a.data); } catch(e) {
+        showToast('⚠️', `附件「${a.name}」儲存失敗（空間不足）`, true);
+        return;
+      }
+    }
+    attachmentsMeta.push({ id: a.id, name: a.name, type: a.type, size: a.size, dataKey });
+  });
+
+  const law = {
+    id: lawId, category, title, summary,
+    lawNumber:   document.getElementById('fLawNumber').value.trim(),
+    lastAmended: document.getElementById('fLastAmended').value.trim(),
+    authority:   document.getElementById('fAuthority').value.trim(),
+    status:      document.getElementById('fStatus').value,
+    chapters:    parsedChapters,
+    attachments: attachmentsMeta,
+  };
+
+  if (editingId) {
+    const i = DB.laws.findIndex(l => l.id === editingId);
+    if (i >= 0) DB.laws[i] = law; else DB.laws.push(law);
+  } else {
+    DB.laws.push(law);
+  }
+
+  saveDB(); renderTable(); setStep(4);
+  showToast('✅', editingId ? `「${title}」已更新` : `「${title}」已新增`);
+  editingId = null;
+  setTimeout(resetAll, 2000);
+}
+
+// ── Edit ──
+function editLaw(id) {
+  const law = DB.laws.find(l => l.id === id);
+  if (!law) return;
+  editingId = id;
+  parsedChapters = law.chapters || [];
+
+  let raw = law.title + '\n\n';
+  (law.chapters || []).forEach(ch => {
+    raw += ch.title + '\n\n';
+    ch.articles.forEach(a => { raw += a.number + '\n' + a.content + '\n\n'; });
+  });
+  document.getElementById('pasteArea').value     = raw.trim();
+  document.getElementById('fTitle').value        = law.title || '';
+  document.getElementById('fCategory').value     = law.category || '';
+  document.getElementById('fStatus').value       = law.status || '現行';
+  document.getElementById('fLawNumber').value    = law.lawNumber || '';
+  document.getElementById('fLastAmended').value  = law.lastAmended || '';
+  document.getElementById('fAuthority').value    = law.authority || '';
+  document.getElementById('fSummary').value      = law.summary || '';
+  document.getElementById('metaCardTitle').textContent = '✏️ 編輯法規資訊';
+
+  loadExistingAttachments(law);
+  renderPreview(parsedChapters);
+  show('cardMeta'); setStep(3); scrollToCard('cardMeta');
+  showToast('✏️', `正在編輯「${law.title}」`);
+}
+
+function deleteLaw(id) {
+  const law = DB.laws.find(l => l.id === id);
+  if (!law || !confirm(`確定要刪除「${law.title}」嗎？`)) return;
+  // Clean up attachment files
+  (law.attachments || []).forEach(meta => {
+    try { localStorage.removeItem(meta.dataKey); } catch(_) {}
+  });
+  DB.laws = DB.laws.filter(l => l.id !== id);
+  saveDB(); renderTable();
+  showToast('🗑', `「${law.title}」已刪除`);
+}
+
+// ── Table ──
+function renderTable() {
+  const tbody = document.getElementById('lawsTbody');
+  document.getElementById('lawCount').textContent = DB.laws.length + ' 筆';
+  if (!DB.laws.length) {
+    tbody.innerHTML = `<tr class="no-data-row"><td colspan="7">尚無法規資料，請使用上方表單新增</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = '';
+  DB.laws.forEach(law => {
+    const cat      = DB.categories.find(c => c.id === law.category);
+    const chCount  = law.chapters?.length || 0;
+    const artCount = law.chapters?.reduce((s,c) => s + (c.articles?.length||0), 0) || 0;
+    const attCount = law.attachments?.length || 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="td-title">${esc(law.title)}</td>
+      <td class="td-cat">${cat ? cat.icon+' '+cat.name : law.category}</td>
+      <td class="td-date">${law.lastAmended||'—'}</td>
+      <td class="td-count">${chCount}</td>
+      <td class="td-count">${artCount}</td>
+      <td class="td-count">${attCount ? '📎 '+attCount : '—'}</td>
+      <td class="td-actions">
+        <div class="law-list-actions" style="justify-content:center;">
+          <button class="icon-btn" onclick="editLaw(${law.id})" title="編輯">✏️</button>
+          <button class="icon-btn del" onclick="deleteLaw(${law.id})" title="刪除">🗑</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Reset ──
+function clearPaste() {
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('charCount').textContent = '0 字元';
+}
+function resetAll() {
+  clearPaste();
+  parsedChapters = []; editingId = null;
+  pendingAttachments = []; renderAttachList();
+  ['fTitle','fLawNumber','fLastAmended','fAuthority','fSummary'].forEach(id =>
+    document.getElementById(id).value = '');
+  document.getElementById('fCategory').value = '';
+  document.getElementById('fStatus').value   = '現行';
+  document.getElementById('metaCardTitle').textContent = '📝 填寫法規資訊';
+  show('cardPaste'); setStep(1);
+  document.querySelector('.admin-layout').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ── Storage / Export ──
+function saveDB() { try { localStorage.setItem('eia-db', JSON.stringify(DB)); } catch(_){} }
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
+  Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob), download:'laws.json'
+  }).click();
+  showToast('⬇️','已下載 laws.json');
+}
+function toggleImport() {
+  const el = document.getElementById('importArea');
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+function importJSON() {
+  try {
+    const p = JSON.parse(document.getElementById('importText').value.trim());
+    if (!p.categories||!p.laws) throw 0;
+    DB = p; saveDB(); populateCatSelect(); renderTable();
+    document.getElementById('importText').value = '';
+    document.getElementById('importArea').style.display = 'none';
+    showToast('✅','匯入成功');
+  } catch(_) { showToast('⚠️','JSON 格式錯誤，請重新確認',true); }
+}
+
+// ── Toast ──
+function showToast(icon, msg, isError=false) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastMsg').textContent  = msg;
+  t.style.borderColor = isError ? 'var(--m-red)' : 'var(--m-blue)';
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>

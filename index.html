@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>環評法律資料庫 | EIA Legal Database</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Search Results Panel ── */
+    .search-wrap { position: relative; flex: 1; }
+
+    .search-results-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0; right: 0;
+      background: #1A1A26;
+      border: 1px solid var(--m-blue);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+      z-index: 500;
+      overflow: hidden;
+      max-height: 480px;
+      display: flex;
+      flex-direction: column;
+      animation: dropIn 0.18s ease;
+    }
+    @keyframes dropIn {
+      from { opacity:0; transform:translateY(-8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .srp-header {
+      padding: 10px 16px;
+      background: var(--m-surface);
+      border-bottom: 1px solid var(--m-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--m-grey);
+      flex-shrink: 0;
+    }
+    .srp-header strong { color: var(--m-blue-lt); }
+    .srp-close {
+      background: none; border: none; color: var(--m-grey);
+      cursor: pointer; font-size: 14px; padding: 2px 6px;
+      border-radius: 4px; transition: color 0.15s;
+    }
+    .srp-close:hover { color: var(--m-white); }
+    .srp-list { overflow-y: auto; flex: 1; }
+    .srp-law-group { border-bottom: 1px solid var(--m-border); }
+    .srp-law-group:last-child { border-bottom: none; }
+    .srp-law-title {
+      padding: 8px 16px 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--m-grey);
+      letter-spacing: 0.5px;
+      background: rgba(255,255,255,0.02);
+      position: sticky;
+      top: 0;
+    }
+    .srp-law-icon { font-size: 14px; }
+    .srp-article-hit {
+      padding: 10px 16px 10px 36px;
+      cursor: pointer;
+      border-top: 1px solid var(--m-border);
+      transition: background 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .srp-article-hit:hover { background: rgba(28,105,212,0.12); }
+    .srp-art-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--m-blue-lt);
+    }
+    .srp-art-snippet {
+      font-size: 12px;
+      color: var(--m-grey-lt);
+      line-height: 1.6;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .srp-art-snippet mark {
+      background: rgba(255,210,0,0.25);
+      color: #FFD600;
+      border-radius: 2px;
+      padding: 0 2px;
+      font-style: normal;
+    }
+    .srp-no-result {
+      padding: 28px;
+      text-align: center;
+      color: var(--m-grey);
+      font-size: 13px;
+    }
+    .srp-no-result span { font-size: 28px; display: block; margin-bottom: 8px; }
+
+    /* ── Keyword highlight in modal ── */
+    .article-content mark {
+      background: rgba(255,210,0,0.22);
+      color: #FFD600;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+    .article-block.highlighted {
+      border-color: var(--m-blue);
+      background: rgba(28,105,212,0.08);
+      box-shadow: 0 0 0 2px rgba(28,105,212,0.2);
+    }
+
+    /* ── Jump anchor pulse animation ── */
+    @keyframes pulse-border {
+      0%   { box-shadow: 0 0 0 0   rgba(28,105,212,0.7); }
+      50%  { box-shadow: 0 0 0 8px rgba(28,105,212,0); }
+      100% { box-shadow: 0 0 0 0   rgba(28,105,212,0); }
+    }
+    .article-block.jump-target {
+      animation: pulse-border 0.9s ease 2;
+    }
+
+    /* ── Modal internal search bar ── */
+    .modal-search-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--m-border);
+      background: var(--m-surface);
+    }
+    .modal-search-input {
+      flex: 1;
+      background: var(--m-black);
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius);
+      padding: 7px 12px;
+      color: var(--m-white);
+      font-family: var(--font-body);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .modal-search-input:focus { border-color: var(--m-blue); }
+    .modal-search-input::placeholder { color: var(--m-grey); }
+    .modal-nav-btn {
+      background: var(--m-surface);
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius);
+      color: var(--m-grey-lt);
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .modal-nav-btn:hover { border-color: var(--m-blue); color: var(--m-blue-lt); }
+    .modal-nav-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--m-grey);
+      white-space: nowrap;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* ── Chapter nav pills inside modal ── */
+    .chapter-nav {
+      display: flex;
+      gap: 6px;
+      padding: 10px 16px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--m-border);
+      background: var(--m-surface);
+      flex-shrink: 0;
+    }
+    .chapter-nav::-webkit-scrollbar { height: 3px; }
+    .ch-pill {
+      background: var(--m-border);
+      border: 1px solid transparent;
+      border-radius: 20px;
+      color: var(--m-grey);
+      font-size: 11px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      padding: 4px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .ch-pill:hover  { background: var(--m-surface); color: var(--m-white); border-color: var(--m-border); }
+    .ch-pill.active { background: rgba(28,105,212,0.15); border-color: var(--m-blue); color: var(--m-blue-lt); }
+
+    /* ── Search mode banner in content area ── */
+    .search-mode-banner {
+      background: rgba(28,105,212,0.08);
+      border: 1px solid rgba(28,105,212,0.25);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--m-grey-lt);
+    }
+    .search-mode-banner strong { color: var(--m-blue-lt); }
+    .search-clear-btn {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius);
+      color: var(--m-grey);
+      font-size: 12px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .search-clear-btn:hover { border-color: var(--m-red); color: var(--m-red-lt); }
+
+    /* ── Article hit count badge on card ── */
+    .hit-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(28,105,212,0.15);
+      border: 1px solid rgba(28,105,212,0.4);
+      color: var(--m-blue-lt);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header class="site-header">
+  <div class="m-stripe"></div>
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-badge">M</div>
+      <div class="logo-text">
+        <span class="logo-title">環評法律資料庫</span>
+        <span class="logo-sub">EIA Legal Database</span>
+      </div>
+    </a>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link active">法規查詢</a>
+      <a href="admin.html" class="nav-link btn-admin">後台管理 ›</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="hero-inner">
+    <p class="hero-eyebrow">// Environmental Impact Assessment</p>
+    <h1 class="hero-title">台灣環評<span>相關法規</span>查詢系統</h1>
+    <p class="hero-desc">完整彙整環境影響評估法及相關子法、環境影響評估法施行細則、污染防治法規</p>
+
+    <div class="search-bar">
+      <div class="search-wrap" id="searchWrap">
+        <input
+          type="text" id="searchInput" class="search-input"
+          placeholder="輸入關鍵字搜尋法規或條文內容..."
+          autocomplete="off"
+          oninput="onSearchInput()"
+          onkeydown="onSearchKey(event)"
+        />
+        <!-- Instant results panel -->
+        <div class="search-results-panel" id="srpPanel" style="display:none;">
+          <div class="srp-header">
+            <span>找到 <strong id="srpCount">0</strong> 筆符合條文</span>
+            <button class="srp-close" onclick="closeSrp()">✕</button>
+          </div>
+          <div class="srp-list" id="srpList"></div>
+        </div>
+      </div>
+      <button class="search-btn" onclick="doSearch()">🔍 搜尋</button>
+      <button class="search-btn" style="background:var(--m-surface);border:1px solid var(--m-border);color:var(--m-grey);" onclick="clearSearch()" title="清除搜尋">✕</button>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-dot blue"></span>
+        <span class="stat-num" id="statTotal">0</span>
+        <span class="stat-label">部法規</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-dot red"></span>
+        <span class="stat-num" id="statCats">0</span>
+        <span class="stat-label">法規類別</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-dot violet"></span>
+        <span class="stat-num" id="statArticles">0</span>
+        <span class="stat-label">條文數</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="m-stripe-thin"></div>
+
+<!-- ══ LAYOUT ══ -->
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <p class="sidebar-title">法規類別</p>
+      <div id="categoryList"></div>
+    </div>
+  </aside>
+
+  <main class="content-area">
+    <div id="searchBanner" style="display:none;"></div>
+    <div class="toolbar">
+      <span class="toolbar-left">
+        顯示 <strong id="countLabel">0</strong> 部法規
+      </span>
+    </div>
+    <div class="laws-grid" id="lawsGrid"></div>
+  </main>
+</div>
+
+<!-- ══ MODAL ══ -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="m-stripe modal-stripe"></div>
+    <div class="modal-header" id="modalHeader"></div>
+
+    <!-- Chapter navigation pills -->
+    <div class="chapter-nav" id="chapterNav"></div>
+
+    <!-- In-modal keyword search -->
+    <div class="modal-search-bar" id="modalSearchBar">
+      <input type="text" class="modal-search-input" id="modalSearchInput"
+        placeholder="在本法條文中搜尋..."
+        oninput="modalSearch()"
+        onkeydown="if(event.key==='Enter') modalNavNext()"
+      />
+      <span class="modal-nav-count" id="modalNavCount"></span>
+      <button class="modal-nav-btn" onclick="modalNavPrev()" title="上一個">↑</button>
+      <button class="modal-nav-btn" onclick="modalNavNext()" title="下一個">↓</button>
+    </div>
+
+    <div class="modal-body" id="modalBody"></div>
+
+    <!-- Attachments section at bottom of modal -->
+    <div class="modal-attach-section" id="modalAttachSection" style="display:none;">
+      <div class="modal-attach-title">📎 附件下載</div>
+      <div class="modal-attach-grid" id="modalAttachGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FILE PREVIEW OVERLAY ══ -->
+<div class="pdf-preview-backdrop" id="previewBackdrop" onclick="closePreview(event)">
+  <div class="pdf-preview-toolbar">
+    <span class="pdf-preview-title" id="previewTitle"></span>
+    <button class="modal-nav-btn" onclick="downloadPreviewFile()">⬇️ 下載</button>
+    <button class="modal-nav-btn" onclick="closePreviewDirect()" style="border-color:var(--m-red);color:var(--m-red-lt);">✕ 關閉</button>
+  </div>
+  <iframe class="pdf-preview-frame"  id="previewFrame"    style="display:none;"></iframe>
+  <img    class="img-preview-frame"  id="previewImg"      style="display:none;" alt="預覽" />
+</div>
+
+<!-- ══ FOOTER ══ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-logo">環評法律資料庫 // EIA Legal Database</div>
+    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with M Power</div>
+  </div>
+</footer>
+
+<script>
+// ══════════════════════════════
+// STATE
+// ══════════════════════════════
+let DB = { categories: [], laws: [] };
+let currentCategory = 'all';
+let searchQuery     = '';
+let srpDebounce     = null;
+
+// Modal internal search state
+let modalHits    = [];   // array of article DOM elements matching modal search
+let modalHitIdx  = -1;
+let currentLaw   = null; // law currently open in modal
+
+// ══════════════════════════════
+// LOAD DATA
+// ══════════════════════════════
+async function loadData() {
+  try {
+    const res = await fetch('laws.json');
+    if (res.ok) DB = await res.json();
+  } catch (_) {}
+  try {
+    const saved = localStorage.getItem('eia-db');
+    if (saved) {
+      const p = JSON.parse(saved);
+      if (p?.laws?.length || p?.categories?.length) DB = p;
+    }
+  } catch (_) {}
+
+  // 補上 localStorage 中可能缺少的新類別
+  const DEFAULT_CATS = [
+    { id:'eia-main',        name:'環境影響評估法',                           icon:'⚖️',  color:'blue'   },
+    { id:'eia-enforcement', name:'環境影響評估法施行細則',                    icon:'📋',  color:'red'    },
+    { id:'pollution',       name:'開發行為應實施環境影響評估細目及範圍認定標準', icon:'🏭',  color:'purple' },
+    { id:'nature',          name:'開發行為環境影響評估作業準則',               icon:'🌿',  color:'blue'   },
+    { id:'water',           name:'水資源相關法規',                            icon:'💧',  color:'red'    },
+    { id:'air',             name:'空氣品質相關法規',                          icon:'🌬️', color:'purple' },
+    { id:'waste',           name:'廢棄物相關法規',                            icon:'🗑️', color:'green'  },
+    { id:'noise',           name:'噪音污染相關法規',                          icon:'🔊',  color:'orange' },
+  ];
+  if (!DB.categories?.length) {
+    DB.categories = DEFAULT_CATS;
+  } else {
+    const existingIds = new Set(DB.categories.map(c => c.id));
+    DEFAULT_CATS.forEach(cat => {
+      if (!existingIds.has(cat.id)) DB.categories.push(cat);
+    });
+  }
+
+  renderStats();
+  renderCategories();
+  renderLaws();
+}
+
+// ══════════════════════════════
+// STATS
+// ══════════════════════════════
+function renderStats() {
+  document.getElementById('statTotal').textContent = DB.laws.length;
+  document.getElementById('statCats').textContent  = DB.categories.length;
+  let t = 0;
+  DB.laws.forEach(l => l.chapters?.forEach(c => t += c.articles?.length || 0));
+  document.getElementById('statArticles').textContent = t;
+}
+
+// ══════════════════════════════
+// CATEGORIES
+// ══════════════════════════════
+function renderCategories() {
+  const container = document.getElementById('categoryList');
+  const countMap  = {};
+  DB.laws.forEach(l => { countMap[l.category] = (countMap[l.category]||0)+1; });
+
+  container.innerHTML = '';
+
+  const allBtn = makeBtn('cat-btn'+(currentCategory==='all'?' active':''), 'blue',
+    `<span class="cat-icon">📚</span>全部法規<span class="cat-count">${DB.laws.length}</span>`,
+    () => setCategory('all'));
+  container.appendChild(allBtn);
+
+  DB.categories.forEach(cat => {
+    const btn = makeBtn('cat-btn'+(currentCategory===cat.id?' active':''), cat.color,
+      `<span class="cat-icon">${cat.icon}</span>${cat.name}<span class="cat-count">${countMap[cat.id]||0}</span>`,
+      () => setCategory(cat.id));
+    container.appendChild(btn);
+  });
+}
+function makeBtn(cls, color, html, fn) {
+  const b = document.createElement('button');
+  b.className = cls; b.setAttribute('data-color', color);
+  b.innerHTML = html; b.onclick = fn;
+  return b;
+}
+function setCategory(id) { currentCategory = id; renderCategories(); renderLaws(); }
+
+// ══════════════════════════════
+// LAWS GRID
+// ══════════════════════════════
+function renderLaws() {
+  const grid = document.getElementById('lawsGrid');
+  const q    = searchQuery.trim().toLowerCase();
+
+  // Filter laws
+  const filtered = DB.laws.filter(l => {
+    const matchCat = currentCategory === 'all' || l.category === currentCategory;
+    if (!q) return matchCat;
+    const matchSearch =
+      l.title.toLowerCase().includes(q) ||
+      (l.summary||'').toLowerCase().includes(q) ||
+      l.chapters?.some(ch =>
+        ch.title?.toLowerCase().includes(q) ||
+        ch.articles?.some(a =>
+          a.number?.toLowerCase().includes(q) ||
+          a.content?.toLowerCase().includes(q)
+        )
+      );
+    return matchCat && matchSearch;
+  });
+
+  document.getElementById('countLabel').textContent = filtered.length;
+
+  // Search mode banner
+  const banner = document.getElementById('searchBanner');
+  if (q) {
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div class="search-mode-banner">
+        🔍 搜尋「<strong>${esc(searchQuery)}</strong>」，共找到
+        <strong>${filtered.length}</strong> 部相關法規
+        <button class="search-clear-btn" onclick="clearSearch()">✕ 清除搜尋</button>
+      </div>`;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  grid.innerHTML = '';
+  if (!filtered.length) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">找不到相關法規</div>
+        <div class="empty-desc">請嘗試其他關鍵字或選擇不同類別</div>
+      </div>`;
+    return;
+  }
+
+  filtered.forEach(law => {
+    const cat   = DB.categories.find(c => c.id === law.category);
+    const color = cat?.color || 'blue';
+
+    // Count matching articles when searching
+    let hitCount = 0;
+    if (q) {
+      law.chapters?.forEach(ch =>
+        ch.articles?.forEach(a => {
+          if (a.content?.toLowerCase().includes(q) || a.number?.toLowerCase().includes(q))
+            hitCount++;
+        })
+      );
+    }
+
+    const card = document.createElement('div');
+    card.className = 'law-card';
+    card.setAttribute('data-color', color);
+    const hitBadge = (q && hitCount)
+      ? `<span class="hit-badge">🎯 符合 ${hitCount} 條</span>` : '';
+    card.innerHTML = `
+      <div class="law-card-stripe"></div>
+      <div class="law-card-body">
+        <div class="law-card-icon-wrap">${cat?.icon||'📄'}</div>
+        <div class="law-card-info">
+          <div class="law-card-title">${esc(law.title)}${hitBadge}</div>
+          <div class="law-card-meta">
+            <span>📅 最新修正：${law.lastAmended||'—'}</span>
+            <span>📌 ${law.lawNumber||'—'}</span>
+          </div>
+          <div class="law-card-summary">${esc(law.summary||'')}</div>
+          <div class="status-badge">
+            <span class="status-dot"></span>${law.status||'現行'}
+          </div>
+        </div>
+        <span class="law-card-arrow">›</span>
+      </div>`;
+    card.onclick = () => openModal(law, q);
+    grid.appendChild(card);
+  });
+}
+
+// ══════════════════════════════
+// INSTANT SEARCH (dropdown)
+// ══════════════════════════════
+function onSearchInput() {
+  clearTimeout(srpDebounce);
+  srpDebounce = setTimeout(buildSrp, 200);
+}
+
+function onSearchKey(e) {
+  if (e.key === 'Enter') { doSearch(); closeSrp(); }
+  if (e.key === 'Escape') closeSrp();
+}
+
+function buildSrp() {
+  const q   = document.getElementById('searchInput').value.trim().toLowerCase();
+  const panel = document.getElementById('srpPanel');
+  const list  = document.getElementById('srpList');
+
+  if (!q || q.length < 1) { closeSrp(); return; }
+
+  // Collect article-level hits across all laws
+  const hits = [];
+  DB.laws.forEach(law => {
+    const cat = DB.categories.find(c => c.id === law.category);
+    (law.chapters || []).forEach(ch => {
+      (ch.articles || []).forEach(art => {
+        const haystack = (art.number + ' ' + art.content).toLowerCase();
+        if (haystack.includes(q) || law.title.toLowerCase().includes(q)) {
+          hits.push({ law, cat, ch, art });
+        }
+      });
+    });
+  });
+
+  document.getElementById('srpCount').textContent = hits.length;
+
+  if (!hits.length) {
+    list.innerHTML = `<div class="srp-no-result"><span>🔎</span>沒有符合「${esc(q)}」的條文</div>`;
+    panel.style.display = 'flex';
+    return;
+  }
+
+  // Group by law
+  const grouped = {};
+  hits.forEach(h => {
+    if (!grouped[h.law.id]) grouped[h.law.id] = { law: h.law, cat: h.cat, arts: [] };
+    grouped[h.law.id].arts.push(h);
+  });
+
+  list.innerHTML = '';
+  Object.values(grouped).forEach(g => {
+    const group = document.createElement('div');
+    group.className = 'srp-law-group';
+    group.innerHTML = `
+      <div class="srp-law-title">
+        <span class="srp-law-icon">${g.cat?.icon||'📄'}</span>
+        ${esc(g.law.title)}
+        <span class="cat-count" style="margin-left:auto;">${g.arts.length}</span>
+      </div>`;
+
+    g.arts.slice(0, 6).forEach(h => {
+      const row = document.createElement('div');
+      row.className = 'srp-article-hit';
+      const snippet = makeSnippet(h.art.content, q, 80);
+      row.innerHTML = `
+        <div class="srp-art-num">${esc(h.art.number)} · ${esc(h.ch.title)}</div>
+        <div class="srp-art-snippet">${snippet}</div>`;
+      row.onclick = () => {
+        closeSrp();
+        doSearch();
+        openModal(h.law, q, h.art.number);
+      };
+      group.appendChild(row);
+    });
+    if (g.arts.length > 6) {
+      const more = document.createElement('div');
+      more.style.cssText = 'padding:6px 16px 8px 36px;font-size:11px;color:var(--m-grey);font-family:var(--font-mono);';
+      more.textContent = `…還有 ${g.arts.length - 6} 條，點擊法規卡片查看全部`;
+      group.appendChild(more);
+    }
+    list.appendChild(group);
+  });
+
+  panel.style.display = 'flex';
+}
+
+function closeSrp() {
+  document.getElementById('srpPanel').style.display = 'none';
+}
+
+// ── Make highlighted snippet ──
+function makeSnippet(text, q, maxLen) {
+  const lower = (text||'').toLowerCase();
+  const idx   = lower.indexOf(q.toLowerCase());
+  if (idx < 0) return esc(text.slice(0, maxLen)) + (text.length > maxLen ? '…' : '');
+  const start  = Math.max(0, idx - 20);
+  const end    = Math.min(text.length, idx + q.length + 60);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < text.length ? '…' : '';
+  const chunk  = text.slice(start, end);
+  return prefix + highlightKeyword(esc(chunk), esc(q)) + suffix;
+}
+
+function highlightKeyword(html, q) {
+  if (!q) return html;
+  // Case-insensitive replace (on escaped text)
+  const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+  return html.replace(re, '<mark>$1</mark>');
+}
+
+// ══════════════════════════════
+// SEARCH
+// ══════════════════════════════
+function doSearch() {
+  searchQuery = document.getElementById('searchInput').value.trim();
+  closeSrp();
+  renderLaws();
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  searchQuery = '';
+  closeSrp();
+  renderLaws();
+}
+
+// Close SRP when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('searchWrap');
+  if (wrap && !wrap.contains(e.target)) closeSrp();
+});
+
+// ══════════════════════════════
+// ATTACHMENTS (modal)
+// ══════════════════════════════
+const FILE_ICONS = {
+  pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊',
+  ppt:'📋', pptx:'📋', jpg:'🖼️', jpeg:'🖼️', png:'🖼️',
+  gif:'🖼️', webp:'🖼️', zip:'🗜️', txt:'📃', csv:'📊',
+};
+function fileIcon(name) {
+  const ext = (name||'').split('.').pop().toLowerCase();
+  return FILE_ICONS[ext] || '📎';
+}
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)    return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+function isPreviewable(name, type) {
+  const ext = (name||'').split('.').pop().toLowerCase();
+  return ext === 'pdf' || (type||'').startsWith('image/') || ['jpg','jpeg','png','gif','webp'].includes(ext);
+}
+function renderModalAttachments(law) {
+  const section = document.getElementById('modalAttachSection');
+  const grid    = document.getElementById('modalAttachGrid');
+  const metas   = law.attachments || [];
+  if (!metas.length) { section.style.display = 'none'; return; }
+  grid.innerHTML = '';
+  metas.forEach(meta => {
+    let data = null;
+    try { data = localStorage.getItem(meta.dataKey); } catch(_) {}
+    const canPreview = isPreviewable(meta.name, meta.type);
+    const chip = document.createElement('div');
+    chip.className = 'modal-attach-chip';
+    chip.innerHTML = `
+      <span class="chip-icon">${fileIcon(meta.name)}</span>
+      <div class="chip-info">
+        <span class="chip-name" title="${esc(meta.name)}">${esc(meta.name)}</span>
+        <span class="chip-meta">${formatSize(meta.size)}</span>
+      </div>
+      <span class="chip-action">${canPreview ? '👁 預覽' : '⬇ 下載'}</span>`;
+    if (data) {
+      chip.onclick = () => canPreview ? openPreview(meta.name, meta.type, data) : downloadFile(meta.name, data);
+    } else {
+      chip.style.opacity = '0.4'; chip.style.cursor = 'default';
+      chip.querySelector('.chip-action').textContent = '⚠ 遺失';
+    }
+    grid.appendChild(chip);
+  });
+  section.style.display = 'block';
+}
+let previewData = null, previewName = null;
+function openPreview(name, type, data) {
+  previewData = data; previewName = name;
+  document.getElementById('previewTitle').textContent = name;
+  const frame = document.getElementById('previewFrame');
+  const img   = document.getElementById('previewImg');
+  const ext   = name.split('.').pop().toLowerCase();
+  if (ext === 'pdf' || type === 'application/pdf') {
+    frame.src = data; frame.style.display = 'block'; img.style.display = 'none';
+  } else {
+    img.src = data; img.style.display = 'block'; frame.style.display = 'none';
+  }
+  document.getElementById('previewBackdrop').classList.add('open');
+}
+function downloadFile(name, data) {
+  const a = document.createElement('a'); a.href = data; a.download = name; a.click();
+}
+function downloadPreviewFile() { if (previewData && previewName) downloadFile(previewName, previewData); }
+function closePreview(e) { if (e.target === document.getElementById('previewBackdrop')) closePreviewDirect(); }
+function closePreviewDirect() {
+  document.getElementById('previewBackdrop').classList.remove('open');
+  document.getElementById('previewFrame').src = '';
+  document.getElementById('previewImg').src   = '';
+}
+
+// ══════════════════════════════
+// MODAL
+// ══════════════════════════════
+function openModal(law, highlightQ, jumpToArtNum) {
+  currentLaw = law;
+  const cat  = DB.categories.find(c => c.id === law.category);
+  const q    = (highlightQ||'').trim();
+
+  // ── Header ──
+  document.getElementById('modalHeader').innerHTML = `
+    <span class="modal-icon">${cat?.icon||'📄'}</span>
+    <div class="modal-header-info">
+      <div class="modal-title">${esc(law.title)}</div>
+      <div class="modal-meta">
+        <span>📅 ${law.lastAmended||'—'}</span>
+        <span>📌 ${law.lawNumber||'—'}</span>
+        <span>🗂 ${cat?.name||'—'}</span>
+      </div>
+    </div>
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>`;
+
+  // ── Chapter nav pills ──
+  const chNav = document.getElementById('chapterNav');
+  if ((law.chapters||[]).length > 1) {
+    chNav.style.display = 'flex';
+    chNav.innerHTML = (law.chapters||[]).map((ch, i) =>
+      `<button class="ch-pill" id="chpill-${i}" onclick="scrollToChapter(${i})">${esc(ch.title)}</button>`
+    ).join('');
+  } else {
+    chNav.style.display = 'none';
+    chNav.innerHTML = '';
+  }
+
+  // ── Body ──
+  const body = document.getElementById('modalBody');
+  let html = '';
+  if (law.summary) html += `<div class="law-summary-box">📋 ${esc(law.summary)}</div>`;
+
+  (law.chapters||[]).forEach((ch, ci) => {
+    html += `<div class="chapter-block" id="modal-ch-${ci}">`;
+    html += `<div class="chapter-title">${esc(ch.title)}</div>`;
+    (ch.articles||[]).forEach((art, ai) => {
+      const artId = `modal-art-${ci}-${ai}`;
+      const contentHtml = q
+        ? highlightKeyword(escNl(art.content), q)
+        : escNl(art.content);
+      const isHit = q && (
+        (art.content||'').toLowerCase().includes(q.toLowerCase()) ||
+        (art.number||'').toLowerCase().includes(q.toLowerCase())
+      );
+      html += `
+        <div class="article-block${isHit?' highlighted':''}" id="${artId}" data-art-num="${esc(art.number)}">
+          <div class="article-number">${esc(art.number)}</div>
+          <div class="article-content">${contentHtml}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  if (!html) html = '<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-title">尚無條文內容</div></div>';
+  body.innerHTML = html;
+
+  // ── Pre-fill modal search if we have a query ──
+  const msi = document.getElementById('modalSearchInput');
+  if (q) { msi.value = q; modalSearch(); }
+  else   { msi.value = ''; clearModalSearch(); }
+
+  document.getElementById('modalBackdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // ── Render attachments ──
+  renderModalAttachments(law);
+
+  // ── Jump to specific article ──
+  if (jumpToArtNum) {
+    requestAnimationFrame(() => {
+      const el = body.querySelector(`[data-art-num="${CSS.escape(jumpToArtNum)}"]`);
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        el.classList.add('jump-target');
+        setTimeout(() => el.classList.remove('jump-target'), 2000);
+      }
+    });
+  } else if (q) {
+    // Jump to first highlighted article
+    requestAnimationFrame(() => {
+      const first = body.querySelector('.article-block.highlighted');
+      if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+  }
+
+  // Update chapter pills on scroll
+  body.onscroll = () => updateActivePill(law.chapters||[]);
+}
+
+// ── Chapter nav ──
+function scrollToChapter(ci) {
+  const el = document.getElementById(`modal-ch-${ci}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelectorAll('.ch-pill').forEach((p,i) =>
+    p.classList.toggle('active', i === ci));
+}
+function updateActivePill(chapters) {
+  const body = document.getElementById('modalBody');
+  const scrollTop = body.scrollTop + 60;
+  let active = 0;
+  chapters.forEach((_, ci) => {
+    const el = document.getElementById(`modal-ch-${ci}`);
+    if (el && el.offsetTop <= scrollTop) active = ci;
+  });
+  document.querySelectorAll('.ch-pill').forEach((p,i) =>
+    p.classList.toggle('active', i === active));
+}
+
+// ══════════════════════════════
+// MODAL INTERNAL SEARCH
+// ══════════════════════════════
+function modalSearch() {
+  const q = document.getElementById('modalSearchInput').value.trim().toLowerCase();
+  const body = document.getElementById('modalBody');
+  modalHits = []; modalHitIdx = -1;
+
+  // Remove existing highlights not from card-search (rebuild from currentLaw)
+  if (!q) { clearModalSearch(); return; }
+
+  // Re-render body with new highlight
+  if (!currentLaw) return;
+  const cat = DB.categories.find(c => c.id === currentLaw.category);
+  let html = '';
+  if (currentLaw.summary) html += `<div class="law-summary-box">📋 ${esc(currentLaw.summary)}</div>`;
+  (currentLaw.chapters||[]).forEach((ch, ci) => {
+    html += `<div class="chapter-block" id="modal-ch-${ci}">`;
+    html += `<div class="chapter-title">${esc(ch.title)}</div>`;
+    (ch.articles||[]).forEach((art, ai) => {
+      const artId = `modal-art-${ci}-${ai}`;
+      const isHit = art.content?.toLowerCase().includes(q) ||
+                    art.number?.toLowerCase().includes(q);
+      const contentHtml = isHit
+        ? highlightKeyword(escNl(art.content), q)
+        : escNl(art.content);
+      html += `
+        <div class="article-block${isHit?' highlighted':''}" id="${artId}" data-art-num="${esc(art.number)}">
+          <div class="article-number">${esc(art.number)}</div>
+          <div class="article-content">${contentHtml}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+  body.innerHTML = html;
+  body.onscroll = () => updateActivePill(currentLaw.chapters||[]);
+
+  // Collect hits
+  modalHits = Array.from(body.querySelectorAll('.article-block.highlighted'));
+  updateModalNavCount();
+  if (modalHits.length) { modalHitIdx = 0; scrollToHit(0); }
+}
+
+function clearModalSearch() {
+  modalHits = []; modalHitIdx = -1;
+  document.getElementById('modalNavCount').textContent = '';
+  if (!currentLaw) return;
+  const body = document.getElementById('modalBody');
+  let html = '';
+  if (currentLaw.summary) html += `<div class="law-summary-box">📋 ${esc(currentLaw.summary)}</div>`;
+  (currentLaw.chapters||[]).forEach((ch, ci) => {
+    html += `<div class="chapter-block" id="modal-ch-${ci}">`;
+    html += `<div class="chapter-title">${esc(ch.title)}</div>`;
+    (ch.articles||[]).forEach((art, ai) => {
+      html += `
+        <div class="article-block" id="modal-art-${ci}-${ai}" data-art-num="${esc(art.number)}">
+          <div class="article-number">${esc(art.number)}</div>
+          <div class="article-content">${escNl(art.content)}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+  body.innerHTML = html;
+  body.onscroll = () => updateActivePill(currentLaw.chapters||[]);
+}
+
+function modalNavNext() {
+  if (!modalHits.length) return;
+  modalHitIdx = (modalHitIdx + 1) % modalHits.length;
+  scrollToHit(modalHitIdx);
+}
+function modalNavPrev() {
+  if (!modalHits.length) return;
+  modalHitIdx = (modalHitIdx - 1 + modalHits.length) % modalHits.length;
+  scrollToHit(modalHitIdx);
+}
+function scrollToHit(i) {
+  modalHits[i]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  updateModalNavCount();
+}
+function updateModalNavCount() {
+  document.getElementById('modalNavCount').textContent =
+    modalHits.length ? `${modalHitIdx+1} / ${modalHits.length}` : '無結果';
+}
+
+// ══════════════════════════════
+// MODAL CLOSE
+// ══════════════════════════════
+function closeModal(e) {
+  if (e.target === document.getElementById('modalBackdrop')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modalBackdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('modalAttachSection').style.display = 'none';
+  currentLaw = null;
+  modalHits = []; modalHitIdx = -1;
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('previewBackdrop').classList.contains('open')) {
+      closePreviewDirect(); return;
+    }
+    closeModalDirect();
+  }
+  if (document.getElementById('modalBackdrop').classList.contains('open')) {
+    if (e.key === 'F3' || (e.ctrlKey && e.key === 'f')) {
+      e.preventDefault();
+      document.getElementById('modalSearchInput').focus();
+    }
+  }
+});
+
+// ══════════════════════════════
+// UTILS
+// ══════════════════════════════
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escNl(s) {
+  return esc(s).replace(/\n/g,'<br>');
+}
+
+// ══════════════════════════════
+// INIT
+// ══════════════════════════════
+loadData();
+</script>
+</body>
+</html>
