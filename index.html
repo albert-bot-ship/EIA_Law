@@ -641,6 +641,13 @@ function renderStats() {
 // ══════════════════════════════
 // CATEGORIES
 // ══════════════════════════════
+function catIconHtml(cat, size = 16) {
+  if (cat?.iconType === 'image' && cat?.iconData) {
+    return `<img src="${cat.iconData}" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:3px;vertical-align:middle;">`;
+  }
+  return `<span class="cat-icon">${cat?.icon || cat?.iconData || '📁'}</span>`;
+}
+
 function renderCategories() {
   const container = document.getElementById('categoryList');
   const countMap  = {};
@@ -655,7 +662,7 @@ function renderCategories() {
 
   DB.categories.forEach(cat => {
     const btn = makeBtn('cat-btn'+(currentCategory===cat.id?' active':''), cat.color,
-      `<span class="cat-icon">${cat.icon}</span>${cat.name}<span class="cat-count">${countMap[cat.id]||0}</span>`,
+      `${catIconHtml(cat)}${esc(cat.name)}<span class="cat-count">${countMap[cat.id]||0}</span>`,
       () => setCategory(cat.id));
     container.appendChild(btn);
   });
@@ -742,7 +749,7 @@ function renderLaws() {
     card.innerHTML = `
       <div class="law-card-stripe"></div>
       <div class="law-card-body">
-        <div class="law-card-icon-wrap">${cat?.icon||'📄'}</div>
+        <div class="law-card-icon-wrap">${catIconHtml(cat,22)}</div>
         <div class="law-card-info">
           <div class="law-card-title">${esc(law.title)}${hitBadge}</div>
           <div class="law-card-meta">
@@ -816,7 +823,7 @@ function buildSrp() {
     group.className = 'srp-law-group';
     group.innerHTML = `
       <div class="srp-law-title">
-        <span class="srp-law-icon">${g.cat?.icon||'📄'}</span>
+        <span class="srp-law-icon">${catIconHtml(g.cat,15)}</span>
         ${esc(g.law.title)}
         <span class="cat-count" style="margin-left:auto;">${g.arts.length}</span>
       </div>`;
@@ -979,7 +986,7 @@ function openModal(law, highlightQ, jumpToArtNum) {
 
   // ── Header ──
   document.getElementById('modalHeader').innerHTML = `
-    <span class="modal-icon">${cat?.icon||'📄'}</span>
+    <span class="modal-icon">${catIconHtml(cat,28)}</span>
     <div class="modal-header-info">
       <div class="modal-title">${esc(law.title)}</div>
       <div class="modal-meta">
