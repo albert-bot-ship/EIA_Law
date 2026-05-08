@@ -257,8 +257,54 @@
     </a>
     <nav class="header-nav">
       <a href="index.html" class="nav-link active">法規查詢</a>
+
+      <!-- 主題切換 -->
+      <div style="position:relative;" id="themeWrap">
+        <button class="theme-btn" onclick="toggleThemeMenu()" id="themeBtn">
+          <span class="theme-icon" id="themeIcon">🌙</span>
+          <span id="themeLabel">深色</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-menu-header">顯示主題</div>
+          <div class="theme-menu-item" id="tmi-auto" onclick="setThemeMode('auto')">
+            <span class="tmi-icon">🌤</span>
+            <div class="tmi-info">
+              <div class="tmi-label">自動（台中日照）</div>
+              <div class="tmi-sub" id="tmiAutoSub">依日出日落自動切換</div>
+            </div>
+            <span class="tmi-check">✓</span>
+          </div>
+          <div class="theme-menu-item" id="tmi-light" onclick="setThemeMode('light')">
+            <span class="tmi-icon">☀️</span>
+            <div class="tmi-info">
+              <div class="tmi-label">淡色模式</div>
+              <div class="tmi-sub">白底深字</div>
+            </div>
+            <span class="tmi-check">✓</span>
+          </div>
+          <div class="theme-menu-item active" id="tmi-dark" onclick="setThemeMode('dark')">
+            <span class="tmi-icon">🌙</span>
+            <div class="tmi-info">
+              <div class="tmi-label">深色模式</div>
+              <div class="tmi-sub">BMW M Power 風格</div>
+            </div>
+            <span class="tmi-check">✓</span>
+          </div>
+        </div>
+      </div>
+
       <a href="admin.html" class="nav-link btn-admin">後台管理 ›</a>
     </nav>
+  </div>
+  <!-- 台中日照資訊條 -->
+  <div class="sun-bar" id="sunBar" style="display:none;">
+    <span class="sun-bar-item">📍 台中</span>
+    <span class="sun-bar-sep">|</span>
+    <span class="sun-bar-item">🌅 <span id="sunRise">—</span></span>
+    <span class="sun-bar-item">🌇 <span id="sunSet">—</span></span>
+    <span class="sun-bar-sep">|</span>
+    <div class="sun-progress"><div class="sun-progress-fill" id="sunFill" style="width:0%"></div></div>
+    <span class="sun-bar-item" id="sunStatus" style="color:var(--m-grey-lt);"></span>
   </div>
 </header>
 
@@ -266,7 +312,7 @@
 <section class="hero">
   <div class="hero-inner">
     <p class="hero-eyebrow">// Environmental Impact Assessment</p>
-    <h1 class="hero-title">環境影響評估<span>相關法規</span>查詢系統</h1>
+    <h1 class="hero-title">台灣環評<span>相關法規</span>查詢系統</h1>
     <p class="hero-desc">完整彙整環境影響評估法及相關子法、環境影響評估法施行細則、污染防治法規</p>
 
     <div class="search-bar">
@@ -379,13 +425,156 @@
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-logo">環評法律資料庫 // EIA Legal Database</div>
-    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Bade By Albert</div>
+    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with M Power</div>
   </div>
 </footer>
 
 <script>
 // ══════════════════════════════
-// STATE
+// THEME & SUN (台中日照)
+// ══════════════════════════════
+
+// 台中座標
+const TAICHUNG_LAT = 24.1477;
+const TAICHUNG_LNG = 120.6736;
+
+let themeMode    = localStorage.getItem('eia-theme') || 'dark'; // auto | light | dark
+let sunriseMin   = 360;  // 預設 06:00（分鐘）
+let sunsetMin    = 1080; // 預設 18:00（分鐘）
+let sunCheckTimer = null;
+
+// ── 套用主題 ──
+function applyTheme(mode) {
+  const now     = new Date();
+  const nowMin  = now.getHours() * 60 + now.getMinutes();
+  const isDark  = mode === 'dark' || (mode === 'auto' && (nowMin < sunriseMin || nowMin >= sunsetMin));
+
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+
+  const icon  = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  const dot   = document.getElementById('themeAutoDot');
+
+  if (mode === 'auto') {
+    icon.textContent  = isDark ? '🌙' : '☀️';
+    label.textContent = '自動';
+    document.getElementById('themeBtn').innerHTML =
+      `<span class="theme-icon">${isDark ? '🌙' : '☀️'}</span>` +
+      `<span class="theme-auto-dot"></span>` +
+      `<span>自動</span>`;
+  } else {
+    document.getElementById('themeBtn').innerHTML =
+      `<span class="theme-icon">${mode === 'dark' ? '🌙' : '☀️'}</span>` +
+      `<span>${mode === 'dark' ? '深色' : '淡色'}</span>`;
+  }
+
+  // 更新選單 active 狀態
+  ['auto','light','dark'].forEach(m => {
+    const el = document.getElementById('tmi-' + m);
+    if (el) el.classList.toggle('active', m === mode);
+  });
+}
+
+// ── 設定模式 ──
+function setThemeMode(mode) {
+  themeMode = mode;
+  localStorage.setItem('eia-theme', mode);
+  applyTheme(mode);
+  closeThemeMenu();
+  if (mode === 'auto') {
+    fetchSunTimes();
+    document.getElementById('sunBar').style.display = 'flex';
+  } else {
+    document.getElementById('sunBar').style.display = 'none';
+  }
+}
+
+// ── 選單開關 ──
+function toggleThemeMenu() {
+  document.getElementById('themeMenu').classList.toggle('open');
+}
+function closeThemeMenu() {
+  document.getElementById('themeMenu').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('themeWrap');
+  if (wrap && !wrap.contains(e.target)) closeThemeMenu();
+});
+
+// ── 取得台中日出日落（Open-Meteo，免費無 key）──
+async function fetchSunTimes() {
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const url   = `https://api.open-meteo.com/v1/forecast?latitude=${TAICHUNG_LAT}&longitude=${TAICHUNG_LNG}&daily=sunrise,sunset&timezone=Asia%2FTaipei&start_date=${today}&end_date=${today}`;
+    const res   = await fetch(url);
+    const data  = await res.json();
+
+    const riseStr = data.daily.sunrise[0]; // "2024-05-08T05:25"
+    const setStr  = data.daily.sunset[0];  // "2024-05-08T18:42"
+
+    const riseDate = new Date(riseStr);
+    const setDate  = new Date(setStr);
+    sunriseMin = riseDate.getHours() * 60 + riseDate.getMinutes();
+    sunsetMin  = setDate.getHours()  * 60 + setDate.getMinutes();
+
+    const fmt = d => d.toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit', hour12: false });
+    document.getElementById('sunRise').textContent = fmt(riseDate);
+    document.getElementById('sunSet').textContent  = fmt(setDate);
+
+    updateSunProgress();
+    // 每分鐘更新進度條
+    clearInterval(sunCheckTimer);
+    sunCheckTimer = setInterval(() => {
+      updateSunProgress();
+      if (themeMode === 'auto') applyTheme('auto');
+    }, 60000);
+
+    // 更新選單副標題
+    const sub = document.getElementById('tmiAutoSub');
+    if (sub) sub.textContent = `日出 ${fmt(riseDate)} · 日落 ${fmt(setDate)}`;
+
+    // 若目前是 auto 模式，重新套用主題
+    if (themeMode === 'auto') applyTheme('auto');
+
+  } catch(e) {
+    // API 失敗：用預設時間靜默降級
+    console.warn('Sun API failed, using defaults');
+  }
+}
+
+// ── 更新進度條 ──
+function updateSunProgress() {
+  const now    = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const fill   = document.getElementById('sunFill');
+  const status = document.getElementById('sunStatus');
+  if (!fill) return;
+
+  if (nowMin < sunriseMin) {
+    fill.style.width = '0%';
+    const diff = sunriseMin - nowMin;
+    status.textContent = `距日出 ${Math.floor(diff/60)}h${diff%60}m`;
+  } else if (nowMin >= sunsetMin) {
+    fill.style.width = '100%';
+    status.textContent = '夜間';
+  } else {
+    const pct = ((nowMin - sunriseMin) / (sunsetMin - sunriseMin) * 100).toFixed(1);
+    fill.style.width = pct + '%';
+    const remain = sunsetMin - nowMin;
+    status.textContent = `距日落 ${Math.floor(remain/60)}h${remain%60}m`;
+  }
+}
+
+// ── 初始化主題 ──
+function initTheme() {
+  applyTheme(themeMode);
+  if (themeMode === 'auto') {
+    fetchSunTimes();
+    document.getElementById('sunBar').style.display = 'flex';
+  }
+}
+
+// ══════════════════════════════
 // ══════════════════════════════
 let DB = { categories: [], laws: [] };
 let currentCategory = 'all';
@@ -422,7 +611,7 @@ async function loadData() {
     { id:'water',           name:'水資源相關法規',                            icon:'💧',  color:'red'    },
     { id:'air',             name:'空氣品質相關法規',                          icon:'🌬️', color:'purple' },
     { id:'waste',           name:'廢棄物相關法規',                            icon:'🗑️', color:'green'  },
-    { id:'noise',           name:'噪音振動相關法規',                          icon:'🔊',  color:'orange' },
+    { id:'noise',           name:'噪音污染相關法規',                          icon:'🔊',  color:'orange' },
   ];
   if (!DB.categories?.length) {
     DB.categories = DEFAULT_CATS;
@@ -1020,6 +1209,7 @@ function escNl(s) {
 // ══════════════════════════════
 // INIT
 // ══════════════════════════════
+initTheme();
 loadData();
 </script>
 </body>
