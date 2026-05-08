@@ -184,6 +184,33 @@
     </a>
     <nav class="header-nav">
       <a href="index.html" class="nav-link">← 回前台</a>
+
+      <!-- 主題切換 -->
+      <div style="position:relative;" id="themeWrap">
+        <button class="theme-btn" onclick="toggleThemeMenu()" id="themeBtn">
+          <span class="theme-icon">🌙</span>
+          <span>深色</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-menu-header">顯示主題</div>
+          <div class="theme-menu-item" id="tmi-auto" onclick="setThemeMode('auto')">
+            <span class="tmi-icon">🌤</span>
+            <div class="tmi-info"><div class="tmi-label">自動（台中日照）</div><div class="tmi-sub" id="tmiAutoSub">依日出日落自動切換</div></div>
+            <span class="tmi-check">✓</span>
+          </div>
+          <div class="theme-menu-item" id="tmi-light" onclick="setThemeMode('light')">
+            <span class="tmi-icon">☀️</span>
+            <div class="tmi-info"><div class="tmi-label">淡色模式</div><div class="tmi-sub">白底深字</div></div>
+            <span class="tmi-check">✓</span>
+          </div>
+          <div class="theme-menu-item active" id="tmi-dark" onclick="setThemeMode('dark')">
+            <span class="tmi-icon">🌙</span>
+            <div class="tmi-info"><div class="tmi-label">深色模式</div><div class="tmi-sub">BMW M Power 風格</div></div>
+            <span class="tmi-check">✓</span>
+          </div>
+        </div>
+      </div>
+
       <a href="admin.html" class="nav-link active">後台管理</a>
     </nav>
   </div>
@@ -414,6 +441,57 @@
 </div>
 
 <script>
+// ══════════════════════════════
+// THEME (同步 index.html 邏輯)
+// ══════════════════════════════
+const TAICHUNG_LAT = 24.1477, TAICHUNG_LNG = 120.6736;
+let themeMode  = localStorage.getItem('eia-theme') || 'dark';
+let sunriseMin = 360, sunsetMin = 1080;
+
+function applyTheme(mode) {
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const isDark = mode === 'dark' || (mode === 'auto' && (nowMin < sunriseMin || nowMin >= sunsetMin));
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  document.getElementById('themeBtn').innerHTML =
+    mode === 'auto'
+      ? `<span class="theme-icon">${isDark?'🌙':'☀️'}</span><span class="theme-auto-dot"></span><span>自動</span>`
+      : `<span class="theme-icon">${mode==='dark'?'🌙':'☀️'}</span><span>${mode==='dark'?'深色':'淡色'}</span>`;
+  ['auto','light','dark'].forEach(m => {
+    const el = document.getElementById('tmi-'+m);
+    if (el) el.classList.toggle('active', m === mode);
+  });
+}
+function setThemeMode(mode) {
+  themeMode = mode; localStorage.setItem('eia-theme', mode);
+  applyTheme(mode); closeThemeMenu();
+  if (mode === 'auto') fetchSunTimes();
+}
+function toggleThemeMenu() { document.getElementById('themeMenu').classList.toggle('open'); }
+function closeThemeMenu()  { document.getElementById('themeMenu').classList.remove('open'); }
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('themeWrap');
+  if (wrap && !wrap.contains(e.target)) closeThemeMenu();
+});
+async function fetchSunTimes() {
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${TAICHUNG_LAT}&longitude=${TAICHUNG_LNG}&daily=sunrise,sunset&timezone=Asia%2FTaipei&start_date=${today}&end_date=${today}`;
+    const data = await (await fetch(url)).json();
+    const r = new Date(data.daily.sunrise[0]), s = new Date(data.daily.sunset[0]);
+    sunriseMin = r.getHours()*60+r.getMinutes(); sunsetMin = s.getHours()*60+s.getMinutes();
+    const fmt = d => d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
+    const sub = document.getElementById('tmiAutoSub');
+    if (sub) sub.textContent = `日出 ${fmt(r)} · 日落 ${fmt(s)}`;
+    if (themeMode==='auto') applyTheme('auto');
+    setInterval(() => { if(themeMode==='auto') applyTheme('auto'); }, 60000);
+  } catch(_) {}
+}
+function initTheme() {
+  applyTheme(themeMode);
+  if (themeMode==='auto') fetchSunTimes();
+}
+initTheme();
+
 // ── State ──
 let DB = { categories: [], laws: [] };
 let parsedChapters = [];
@@ -437,7 +515,7 @@ async function init() {
     { id:'water',           name:'水資源相關法規',                            icon:'💧',  color:'red'    },
     { id:'air',             name:'空氣品質相關法規',                          icon:'🌬️', color:'purple' },
     { id:'waste',           name:'廢棄物相關法規',                            icon:'🗑️', color:'green'  },
-    { id:'noise',           name:'噪音振動相關法規',                          icon:'🔊',  color:'orange' },
+    { id:'noise',           name:'噪音污染相關法規',                          icon:'🔊',  color:'orange' },
   ];
   if (!DB.categories?.length) {
     // 完全沒有類別 → 直接套用預設
