@@ -167,6 +167,149 @@
       .meta-grid-2 { grid-template-columns:1fr; }
       .step-line   { display:none; }
     }
+
+    /* ── Category Manager ── */
+    .cat-manager-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width:800px) { .cat-manager-grid { grid-template-columns:1fr; } }
+
+    .cat-list-table { width:100%; border-collapse:collapse; }
+    .cat-list-table th {
+      font-family:var(--font-display); font-size:10px; font-weight:700;
+      letter-spacing:2px; text-transform:uppercase; color:var(--m-grey);
+      padding:8px 12px; text-align:left;
+      border-bottom:1px solid var(--m-border); background:var(--m-surface);
+    }
+    .cat-list-table td { padding:10px 12px; border-bottom:1px solid var(--m-border); vertical-align:middle; font-size:13px; }
+    .cat-list-table tr:last-child td { border-bottom:none; }
+    .cat-list-table tr:hover td { background:var(--m-surface); }
+    .cat-list-table tr.editing td { background:rgba(28,105,212,0.06); }
+
+    .cat-icon-cell { width:44px; text-align:center; }
+    .cat-icon-preview {
+      width: 36px; height: 36px;
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      background: var(--m-surface);
+      border: 1px solid var(--m-border);
+      overflow: hidden;
+    }
+    .cat-icon-preview img { width:100%; height:100%; object-fit:cover; border-radius:4px; }
+
+    .color-dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    /* ── Icon Picker Panel ── */
+    .icon-picker {
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--m-black);
+    }
+    .icon-picker-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--m-border);
+      background: var(--m-surface);
+    }
+    .ipt {
+      flex: 1; padding: 9px 12px;
+      font-family:var(--font-display); font-size:12px; font-weight:700;
+      letter-spacing:1px; text-transform:uppercase;
+      color:var(--m-grey); background:none; border:none; cursor:pointer;
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .ipt.active { color:var(--m-blue-lt); border-bottom-color:var(--m-blue); }
+    .ipt:hover  { color:var(--m-white); }
+
+    .icon-tab-content { padding: 14px; }
+    .icon-tab-content.hidden { display:none; }
+
+    /* Emoji quick picks */
+    .emoji-grid {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    }
+    .emoji-btn {
+      width: 34px; height: 34px;
+      font-size: 18px; border-radius: var(--radius);
+      background: var(--m-surface); border: 1px solid var(--m-border);
+      cursor: pointer; display:flex; align-items:center; justify-content:center;
+      transition: all 0.15s;
+    }
+    .emoji-btn:hover  { border-color:var(--m-blue); background:rgba(28,105,212,0.08); }
+    .emoji-btn.active { border-color:var(--m-blue-lt); background:rgba(28,105,212,0.18); }
+
+    .emoji-custom-row {
+      display: flex; gap: 8px; align-items: center; margin-top: 8px;
+    }
+    .emoji-input {
+      width: 56px; text-align:center; font-size: 20px;
+      background:var(--m-surface); border:1px solid var(--m-border);
+      border-radius:var(--radius); padding:6px 4px;
+      color:var(--m-white); outline:none;
+      transition: border-color 0.15s;
+    }
+    .emoji-input:focus { border-color:var(--m-blue); }
+
+    /* Image upload */
+    .img-upload-zone {
+      border: 2px dashed var(--m-border); border-radius: var(--radius);
+      padding: 16px; text-align:center; cursor:pointer;
+      transition: all 0.15s; position:relative;
+      background: var(--m-surface);
+    }
+    .img-upload-zone:hover, .img-upload-zone.dragover {
+      border-color:var(--m-blue); background:rgba(28,105,212,0.05);
+    }
+    .img-upload-zone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+    .img-upload-zone .uz-icon { font-size:24px; margin-bottom:4px; }
+    .img-upload-zone .uz-text { font-size:12px; color:var(--m-grey); }
+    .img-preview-wrap {
+      position:relative; display:inline-block; margin-top:8px;
+    }
+    .img-preview-thumb {
+      width:56px; height:56px; border-radius:var(--radius);
+      object-fit:cover; border:1px solid var(--m-border); display:block;
+    }
+    .img-preview-clear {
+      position:absolute; top:-6px; right:-6px;
+      width:18px; height:18px; border-radius:50%;
+      background:var(--m-red); color:#fff; border:none;
+      font-size:10px; cursor:pointer; display:flex;
+      align-items:center; justify-content:center; line-height:1;
+    }
+
+    /* Color swatches */
+    .color-swatches {
+      display: flex; flex-wrap:wrap; gap: 8px; margin-top: 10px;
+    }
+    .color-swatch {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid transparent; cursor: pointer;
+      transition: all 0.15s; position:relative;
+    }
+    .color-swatch.active {
+      border-color: var(--m-white);
+      box-shadow: 0 0 0 2px var(--m-blue);
+    }
+    .color-swatch:hover { transform:scale(1.15); }
+
+    .cat-form-inline {
+      display: flex; flex-direction:column; gap:12px;
+    }
+    .drag-handle {
+      color:var(--m-grey); cursor:grab; padding:0 4px; font-size:16px; user-select:none;
+    }
+    .drag-handle:active { cursor:grabbing; }
   </style>
 </head>
 <body>
@@ -392,6 +535,116 @@
     </div>
   </div>
 
+  <!-- ══════ CATEGORY MANAGER ══════ -->
+  <div class="divider"></div>
+
+  <div class="form-card">
+    <div class="form-card-header" style="flex-wrap:wrap;gap:10px;">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title" style="font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">🗂 類別管理</span>
+      <span id="catCount" style="margin-left:auto;font-size:12px;color:var(--m-grey);font-family:var(--font-mono);">0 個類別</span>
+    </div>
+    <div class="form-card-body">
+      <div class="cat-manager-grid">
+
+        <!-- 左：類別清單 -->
+        <div>
+          <div style="overflow-x:auto;">
+            <table class="cat-list-table" id="catTable">
+              <thead>
+                <tr>
+                  <th style="width:20px;"></th>
+                  <th style="width:44px;">圖示</th>
+                  <th>類別名稱</th>
+                  <th>顏色</th>
+                  <th style="text-align:center;">法規數</th>
+                  <th style="text-align:center;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="catTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 右：新增 / 編輯表單 -->
+        <div>
+          <div class="form-card" style="margin:0;background:var(--m-surface);">
+            <div class="form-card-header">
+              <div class="m-stripe-vert"></div>
+              <span class="form-card-title" style="font-size:13px;" id="catFormTitle">➕ 新增類別</span>
+            </div>
+            <div class="form-card-body" style="padding:16px;">
+              <div class="cat-form-inline">
+
+                <!-- 名稱 -->
+                <div class="form-group">
+                  <label class="form-label">類別名稱 *</label>
+                  <input type="text" id="cName" class="form-input" placeholder="例：環境影響評估法" />
+                </div>
+
+                <!-- 圖示選擇器 -->
+                <div class="form-group">
+                  <label class="form-label">類別圖示</label>
+                  <div class="icon-picker">
+                    <div class="icon-picker-tabs">
+                      <button class="ipt active" onclick="switchIconTab('emoji')">Emoji</button>
+                      <button class="ipt"        onclick="switchIconTab('image')">上傳圖片</button>
+                    </div>
+
+                    <!-- Emoji Tab -->
+                    <div class="icon-tab-content" id="tabEmoji">
+                      <div class="emoji-grid" id="emojiGrid"></div>
+                      <div class="emoji-custom-row">
+                        <input type="text" id="emojiCustom" class="emoji-input"
+                          maxlength="4" placeholder="✏️"
+                          oninput="onCustomEmoji()" />
+                        <span style="font-size:12px;color:var(--m-grey);">自行輸入 Emoji</span>
+                      </div>
+                    </div>
+
+                    <!-- Image Tab -->
+                    <div class="icon-tab-content hidden" id="tabImage">
+                      <div class="img-upload-zone" id="catImgZone"
+                        ondragover="catImgDragOver(event)" ondragleave="catImgDragLeave()"
+                        ondrop="catImgDrop(event)">
+                        <input type="file" accept="image/*" onchange="catImgChange(event)" />
+                        <div class="uz-icon">🖼️</div>
+                        <div class="uz-text">點擊或拖放圖片<br>建議正方形，PNG/JPG</div>
+                      </div>
+                      <div id="catImgPreview" style="text-align:center;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 顏色 -->
+                <div class="form-group">
+                  <label class="form-label">強調色</label>
+                  <div class="color-swatches" id="colorSwatches"></div>
+                </div>
+
+                <!-- 預覽 -->
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--m-black);border-radius:var(--radius);border:1px solid var(--m-border);">
+                  <div class="cat-icon-preview" id="catPreviewIcon">❓</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:500;color:var(--m-white);" id="catPreviewName">類別預覽</div>
+                    <div style="font-size:11px;font-family:var(--font-mono);color:var(--m-grey);margin-top:2px;" id="catPreviewColor">—</div>
+                  </div>
+                </div>
+
+                <!-- 按鈕 -->
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-primary" style="flex:1;" onclick="saveCat()">💾 儲存類別</button>
+                  <button class="btn btn-secondary" onclick="resetCatForm()">✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <!-- ══════ LAW LIST ══════ -->
   <div class="divider"></div>
 
@@ -530,6 +783,8 @@ async function init() {
   saveDB(); // 把更新後的類別同步回 localStorage
   populateCatSelect();
   renderTable();
+  initCatManager();
+  document.getElementById('cName').addEventListener('input', updateCatPreview);
   document.getElementById('pasteArea').addEventListener('input', () => {
     document.getElementById('charCount').textContent =
       document.getElementById('pasteArea').value.length.toLocaleString() + ' 字元';
@@ -923,8 +1178,280 @@ function resetAll() {
   document.querySelector('.admin-layout').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
-// ── Storage / Export ──
-function saveDB() { try { localStorage.setItem('eia-db', JSON.stringify(DB)); } catch(_){} }
+// ══════════════════════════════
+// CATEGORY MANAGER
+// ══════════════════════════════
+
+const COLOR_OPTIONS = [
+  { id:'blue',   hex:'#1C69D4', label:'藍色' },
+  { id:'red',    hex:'#CC1226', label:'紅色' },
+  { id:'purple', hex:'#7B1FA2', label:'紫色' },
+  { id:'green',  hex:'#1B8A4C', label:'綠色' },
+  { id:'orange', hex:'#C45C00', label:'橙色' },
+  { id:'teal',   hex:'#0A7C6E', label:'青色' },
+  { id:'brown',  hex:'#7B4F2E', label:'棕色' },
+  { id:'pink',   hex:'#C2185B', label:'粉色' },
+];
+
+const EMOJI_PRESETS = [
+  '⚖️','📋','🏭','🌿','💧','🌬️','🗑️','🔊',
+  '🏗️','🌊','🌲','🔬','📊','🏔️','🌏','⚡',
+  '🚧','🐟','🦋','🌱','🔥','☁️','🌡️','🏞️',
+];
+
+let catIconType    = 'emoji';   // 'emoji' | 'image'
+let catIconValue   = '📁';      // current emoji or base64
+let catColorId     = 'blue';
+let editingCatId   = null;
+
+function initCatManager() {
+  // Build emoji grid
+  const grid = document.getElementById('emojiGrid');
+  grid.innerHTML = '';
+  EMOJI_PRESETS.forEach(e => {
+    const btn = document.createElement('button');
+    btn.className = 'emoji-btn'; btn.textContent = e; btn.type = 'button';
+    btn.onclick = () => selectEmoji(e);
+    grid.appendChild(btn);
+  });
+
+  // Build color swatches
+  const sw = document.getElementById('colorSwatches');
+  sw.innerHTML = '';
+  COLOR_OPTIONS.forEach(c => {
+    const s = document.createElement('div');
+    s.className = 'color-swatch' + (c.id === catColorId ? ' active' : '');
+    s.style.background = c.hex;
+    s.title = c.label;
+    s.onclick = () => selectColor(c.id, c.hex);
+    sw.appendChild(s);
+  });
+
+  selectEmoji(catIconValue);
+  renderCatTable();
+}
+
+// ── Icon Tab Switch ──
+function switchIconTab(tab) {
+  catIconType = tab;
+  document.getElementById('tabEmoji').classList.toggle('hidden', tab !== 'emoji');
+  document.getElementById('tabImage').classList.toggle('hidden', tab !== 'image');
+  document.querySelectorAll('.ipt').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='emoji')||(i===1&&tab==='image')));
+}
+
+// ── Emoji ──
+function selectEmoji(e) {
+  catIconType  = 'emoji';
+  catIconValue = e;
+  document.getElementById('emojiCustom').value = e;
+  document.querySelectorAll('.emoji-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent === e));
+  updateCatPreview();
+}
+function onCustomEmoji() {
+  const v = document.getElementById('emojiCustom').value.trim();
+  if (v) { catIconValue = v; catIconType = 'emoji'; }
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
+  updateCatPreview();
+}
+
+// ── Image ──
+function catImgDragOver(e) { e.preventDefault(); document.getElementById('catImgZone').classList.add('dragover'); }
+function catImgDragLeave()  { document.getElementById('catImgZone').classList.remove('dragover'); }
+function catImgDrop(e)      { e.preventDefault(); catImgDragLeave(); processCatImg(e.dataTransfer.files[0]); }
+function catImgChange(e)    { if (e.target.files[0]) processCatImg(e.target.files[0]); e.target.value=''; }
+
+function processCatImg(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    catIconType  = 'image';
+    catIconValue = ev.target.result;
+    showCatImgPreview(catIconValue);
+    updateCatPreview();
+  };
+  reader.readAsDataURL(file);
+}
+function showCatImgPreview(src) {
+  const wrap = document.getElementById('catImgPreview');
+  wrap.innerHTML = `
+    <div class="img-preview-wrap">
+      <img class="img-preview-thumb" src="${src}" />
+      <button class="img-preview-clear" onclick="clearCatImg()">✕</button>
+    </div>`;
+}
+function clearCatImg() {
+  catIconType = 'emoji'; catIconValue = '📁';
+  document.getElementById('catImgPreview').innerHTML = '';
+  updateCatPreview();
+}
+
+// ── Color ──
+function selectColor(id, hex) {
+  catColorId = id;
+  document.querySelectorAll('.color-swatch').forEach((s,i) =>
+    s.classList.toggle('active', COLOR_OPTIONS[i].id === id));
+  updateCatPreview();
+}
+
+// ── Preview ──
+function updateCatPreview() {
+  const iconEl  = document.getElementById('catPreviewIcon');
+  const nameEl  = document.getElementById('catPreviewName');
+  const colorEl = document.getElementById('catPreviewColor');
+  const name    = document.getElementById('cName').value.trim() || '類別預覽';
+  const col     = COLOR_OPTIONS.find(c => c.id === catColorId);
+
+  if (catIconType === 'image') {
+    iconEl.innerHTML = `<img src="${catIconValue}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">`;
+  } else {
+    iconEl.textContent = catIconValue || '📁';
+  }
+  iconEl.style.borderColor = col?.hex || '';
+  nameEl.textContent  = name;
+  colorEl.textContent = col?.label || '';
+  colorEl.style.color = col?.hex || '';
+
+  document.getElementById('cName').addEventListener('input', updateCatPreview, { once:false });
+}
+
+// ── Save Category ──
+function saveCat() {
+  const name = document.getElementById('cName').value.trim();
+  if (!name) { showToast('⚠️','請填寫類別名稱',true); return; }
+
+  // Store image separately in localStorage if it's an image
+  let iconData   = catIconValue;
+  let iconIsImg  = catIconType === 'image';
+
+  if (editingCatId) {
+    const idx = DB.categories.findIndex(c => c.id === editingCatId);
+    if (idx >= 0) {
+      DB.categories[idx] = { ...DB.categories[idx], name, color: catColorId,
+        icon: iconIsImg ? '🖼️' : iconData,
+        iconType: catIconType, iconData };
+    }
+    showToast('✅', `「${name}」已更新`);
+  } else {
+    const id = 'cat-' + Date.now();
+    DB.categories.push({ id, name, color: catColorId,
+      icon: iconIsImg ? '🖼️' : iconData,
+      iconType: catIconType, iconData });
+    showToast('✅', `「${name}」已新增`);
+  }
+
+  saveDB();
+  populateCatSelect();
+  renderCatTable();
+  renderTable();
+  resetCatForm();
+}
+
+// ── Edit Category ──
+function editCat(id) {
+  const cat = DB.categories.find(c => c.id === id);
+  if (!cat) return;
+  editingCatId = id;
+  document.getElementById('catFormTitle').textContent = '✏️ 編輯類別';
+  document.getElementById('cName').value = cat.name;
+
+  catColorId   = cat.color || 'blue';
+  catIconType  = cat.iconType || 'emoji';
+  catIconValue = cat.iconData || cat.icon || '📁';
+
+  // Re-init color swatches
+  document.querySelectorAll('.color-swatch').forEach((s,i) =>
+    s.classList.toggle('active', COLOR_OPTIONS[i].id === catColorId));
+
+  if (catIconType === 'image') {
+    switchIconTab('image');
+    showCatImgPreview(catIconValue);
+  } else {
+    switchIconTab('emoji');
+    document.getElementById('emojiCustom').value = catIconValue;
+    document.querySelectorAll('.emoji-btn').forEach(b =>
+      b.classList.toggle('active', b.textContent === catIconValue));
+  }
+
+  updateCatPreview();
+  document.getElementById('catFormTitle').scrollIntoView({ behavior:'smooth', block:'start' });
+  // Highlight row
+  document.querySelectorAll('#catTbody tr').forEach(r =>
+    r.classList.toggle('editing', r.dataset.catId === id));
+}
+
+// ── Delete Category ──
+function deleteCat(id) {
+  const cat  = DB.categories.find(c => c.id === id);
+  const used = DB.laws.some(l => l.category === id);
+  if (!cat) return;
+  if (used && !confirm(`「${cat.name}」底下已有法規，刪除類別後這些法規將無類別，確定刪除？`)) return;
+  if (!used && !confirm(`確定要刪除「${cat.name}」嗎？`)) return;
+  DB.categories = DB.categories.filter(c => c.id !== id);
+  saveDB(); populateCatSelect(); renderCatTable(); renderTable();
+  showToast('🗑', `「${cat.name}」已刪除`);
+  if (editingCatId === id) resetCatForm();
+}
+
+// ── Reset ──
+function resetCatForm() {
+  editingCatId = null;
+  document.getElementById('cName').value = '';
+  document.getElementById('catFormTitle').textContent = '➕ 新增類別';
+  catIconType = 'emoji'; catIconValue = '📁'; catColorId = 'blue';
+  document.getElementById('emojiCustom').value = '';
+  document.getElementById('catImgPreview').innerHTML = '';
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.color-swatch').forEach((s,i) =>
+    s.classList.toggle('active', COLOR_OPTIONS[i].id === 'blue'));
+  document.querySelectorAll('#catTbody tr').forEach(r => r.classList.remove('editing'));
+  switchIconTab('emoji');
+  updateCatPreview();
+}
+
+// ── Render Table ──
+function renderCatTable() {
+  const tbody = document.getElementById('catTbody');
+  document.getElementById('catCount').textContent = DB.categories.length + ' 個類別';
+  const lawCountMap = {};
+  DB.laws.forEach(l => { lawCountMap[l.category] = (lawCountMap[l.category]||0)+1; });
+
+  if (!DB.categories.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--m-grey);">尚無類別</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  DB.categories.forEach(cat => {
+    const col    = COLOR_OPTIONS.find(c => c.id === cat.color);
+    const count  = lawCountMap[cat.id] || 0;
+    const isImg  = cat.iconType === 'image';
+    const iconHtml = isImg
+      ? `<div class="cat-icon-preview"><img src="${cat.iconData}" /></div>`
+      : `<div class="cat-icon-preview">${cat.icon||cat.iconData||'📁'}</div>`;
+
+    const tr = document.createElement('tr');
+    tr.dataset.catId = cat.id;
+    tr.innerHTML = `
+      <td><span class="drag-handle">⠿</span></td>
+      <td class="cat-icon-cell">${iconHtml}</td>
+      <td style="color:var(--m-white);font-weight:500;">${esc(cat.name)}</td>
+      <td>
+        <span class="color-dot" style="background:${col?.hex||'#888'};"></span>
+        <span style="font-size:11px;color:var(--m-grey);">${col?.label||cat.color}</span>
+      </td>
+      <td style="text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--m-grey-lt);">${count}</td>
+      <td>
+        <div class="law-list-actions" style="justify-content:center;">
+          <button class="icon-btn" onclick="editCat('${cat.id}')" title="編輯">✏️</button>
+          <button class="icon-btn del" onclick="deleteCat('${cat.id}')" title="刪除">🗑</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ══════════════════════════════ try { localStorage.setItem('eia-db', JSON.stringify(DB)); } catch(_){} }
 function downloadJSON() {
   const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
   Object.assign(document.createElement('a'), {
