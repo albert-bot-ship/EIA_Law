@@ -781,6 +781,10 @@ async function init() {
     });
   }
   saveDB(); // 把更新後的類別同步回 localStorage
+
+  // 格式正規化：補上所有類別缺少的 iconType / iconData 欄位
+  normalizeCats();
+
   populateCatSelect();
   renderTable();
   initCatManager();
@@ -791,12 +795,25 @@ async function init() {
   });
 }
 
+function normalizeCats() {
+  // 讓每個類別都有 iconType / iconData，舊資料補上預設值
+  DB.categories = DB.categories.map(c => ({
+    ...c,
+    iconType: c.iconType || 'emoji',
+    iconData: c.iconData || c.icon || '📁',
+  }));
+  saveDB();
+}
+
 function populateCatSelect() {
   const sel = document.getElementById('fCategory');
   sel.innerHTML = '<option value="">請選擇類別</option>';
   DB.categories.forEach(c => {
     const o = document.createElement('option');
-    o.value = c.id; o.textContent = c.icon + ' ' + c.name;
+    o.value = c.id;
+    // 下拉只能顯示文字，圖片類別就顯示名稱（無圖示前綴）
+    const prefix = c.iconType === 'image' ? '🖼 ' : (c.icon || c.iconData || '');
+    o.textContent = prefix + ' ' + c.name;
     sel.appendChild(o);
   });
 }
@@ -1320,23 +1337,31 @@ function saveCat() {
   const name = document.getElementById('cName').value.trim();
   if (!name) { showToast('⚠️','請填寫類別名稱',true); return; }
 
-  // Store image separately in localStorage if it's an image
-  let iconData   = catIconValue;
-  let iconIsImg  = catIconType === 'image';
+  const isImg = catIconType === 'image';
 
   if (editingCatId) {
+    // 編輯現有類別（含預設類別），保留原本的 id
     const idx = DB.categories.findIndex(c => c.id === editingCatId);
     if (idx >= 0) {
-      DB.categories[idx] = { ...DB.categories[idx], name, color: catColorId,
-        icon: iconIsImg ? '🖼️' : iconData,
-        iconType: catIconType, iconData };
+      DB.categories[idx] = {
+        ...DB.categories[idx],   // 保留 id 及其他欄位
+        name,
+        color:    catColorId,
+        icon:     isImg ? '🖼️' : catIconValue,
+        iconType: catIconType,
+        iconData: catIconValue,
+      };
     }
     showToast('✅', `「${name}」已更新`);
   } else {
+    // 新增類別
     const id = 'cat-' + Date.now();
-    DB.categories.push({ id, name, color: catColorId,
-      icon: iconIsImg ? '🖼️' : iconData,
-      iconType: catIconType, iconData });
+    DB.categories.push({
+      id, name, color: catColorId,
+      icon:     isImg ? '🖼️' : catIconValue,
+      iconType: catIconType,
+      iconData: catIconValue,
+    });
     showToast('✅', `「${name}」已新增`);
   }
 
@@ -1355,29 +1380,37 @@ function editCat(id) {
   document.getElementById('catFormTitle').textContent = '✏️ 編輯類別';
   document.getElementById('cName').value = cat.name;
 
+  // 支援新格式（iconType/iconData）與舊格式（icon 只有 emoji）
   catColorId   = cat.color || 'blue';
   catIconType  = cat.iconType || 'emoji';
   catIconValue = cat.iconData || cat.icon || '📁';
 
-  // Re-init color swatches
-  document.querySelectorAll('.color-swatch').forEach((s,i) =>
+  // 重設顏色色票
+  document.querySelectorAll('.color-swatch').forEach((s, i) =>
     s.classList.toggle('active', COLOR_OPTIONS[i].id === catColorId));
 
+  // 切換到對應的 icon tab 並填入值
   if (catIconType === 'image') {
     switchIconTab('image');
     showCatImgPreview(catIconValue);
   } else {
     switchIconTab('emoji');
     document.getElementById('emojiCustom').value = catIconValue;
+    // 高亮 preset 按鈕（若符合）
     document.querySelectorAll('.emoji-btn').forEach(b =>
-      b.classList.toggle('active', b.textContent === catIconValue));
+      b.classList.toggle('active', b.textContent.trim() === catIconValue.trim()));
   }
 
   updateCatPreview();
-  document.getElementById('catFormTitle').scrollIntoView({ behavior:'smooth', block:'start' });
-  // Highlight row
+
+  // Highlight 對應列
   document.querySelectorAll('#catTbody tr').forEach(r =>
     r.classList.toggle('editing', r.dataset.catId === id));
+
+  // 捲動到表單
+  document.getElementById('catFormTitle').closest('.form-card')
+    .scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast('✏️', `正在編輯「${cat.name}」`);
 }
 
 // ── Delete Category ──
