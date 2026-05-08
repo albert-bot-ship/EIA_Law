@@ -634,7 +634,7 @@
                 <!-- 按鈕 -->
                 <div style="display:flex;gap:8px;">
                   <button class="btn btn-primary" style="flex:1;" onclick="saveCat()">💾 儲存類別</button>
-                  <button class="btn btn-secondary" onclick="resetCatForm()">✕</button>
+                  <button class="btn btn-secondary" id="catCancelBtn" onclick="resetCatForm()">✕ 清除</button>
                 </div>
               </div>
             </div>
@@ -1369,48 +1369,63 @@ function saveCat() {
   populateCatSelect();
   renderCatTable();
   renderTable();
-  resetCatForm();
+  resetCatForm(); // 同時重置取消按鈕
 }
 
+// ── Edit Category ──
 // ── Edit Category ──
 function editCat(id) {
   const cat = DB.categories.find(c => c.id === id);
   if (!cat) return;
   editingCatId = id;
-  document.getElementById('catFormTitle').textContent = '✏️ 編輯類別';
+
+  // ── 填入表單 ──
+  document.getElementById('catFormTitle').textContent = `✏️ 編輯：${cat.name}`;
   document.getElementById('cName').value = cat.name;
 
-  // 支援新格式（iconType/iconData）與舊格式（icon 只有 emoji）
   catColorId   = cat.color || 'blue';
   catIconType  = cat.iconType || 'emoji';
   catIconValue = cat.iconData || cat.icon || '📁';
 
-  // 重設顏色色票
+  // 顏色色票
   document.querySelectorAll('.color-swatch').forEach((s, i) =>
     s.classList.toggle('active', COLOR_OPTIONS[i].id === catColorId));
 
-  // 切換到對應的 icon tab 並填入值
+  // 圖示 tab
   if (catIconType === 'image') {
     switchIconTab('image');
     showCatImgPreview(catIconValue);
   } else {
     switchIconTab('emoji');
-    document.getElementById('emojiCustom').value = catIconValue;
-    // 高亮 preset 按鈕（若符合）
+    const input = document.getElementById('emojiCustom');
+    input.value = catIconValue;
+    // Emoji 比較：用 codePointAt 避免 Unicode 變體問題
+    const normalise = s => [...s].map(c => c.codePointAt(0)).join('-');
+    const targetNorm = normalise(catIconValue);
     document.querySelectorAll('.emoji-btn').forEach(b =>
-      b.classList.toggle('active', b.textContent.trim() === catIconValue.trim()));
+      b.classList.toggle('active', normalise(b.textContent.trim()) === targetNorm));
   }
 
   updateCatPreview();
 
-  // Highlight 對應列
+  // ── 視覺：高亮正在編輯的列 ──
   document.querySelectorAll('#catTbody tr').forEach(r =>
     r.classList.toggle('editing', r.dataset.catId === id));
 
-  // 捲動到表單
-  document.getElementById('catFormTitle').closest('.form-card')
-    .scrollIntoView({ behavior: 'smooth', block: 'start' });
-  showToast('✏️', `正在編輯「${cat.name}」`);
+  // ── 視覺：讓右側表單閃一下藍框 ──
+  const formCard = document.getElementById('catFormTitle').closest('.form-card');
+  formCard.style.transition = 'box-shadow 0.2s';
+  formCard.style.boxShadow  = '0 0 0 2px var(--m-blue), 0 0 20px rgba(28,105,212,0.3)';
+  setTimeout(() => formCard.style.boxShadow = '', 1800);
+
+  // ── 捲動到右側表單（手機版為單欄，需捲動） ──
+  formCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // 更新取消按鈕文字
+  const cancelBtn = document.getElementById('catCancelBtn');
+  if (cancelBtn) { cancelBtn.textContent = '✕ 取消編輯'; cancelBtn.classList.add('btn-danger'); cancelBtn.classList.remove('btn-secondary'); }
+
+  showToast('✏️', `正在編輯「${cat.name}」，修改後按「儲存類別」`);
 }
 
 // ── Delete Category ──
@@ -1438,8 +1453,14 @@ function resetCatForm() {
   document.querySelectorAll('.color-swatch').forEach((s,i) =>
     s.classList.toggle('active', COLOR_OPTIONS[i].id === 'blue'));
   document.querySelectorAll('#catTbody tr').forEach(r => r.classList.remove('editing'));
+  // 清除藍框
+  const formCard = document.getElementById('catFormTitle').closest('.form-card');
+  if (formCard) formCard.style.boxShadow = '';
   switchIconTab('emoji');
   updateCatPreview();
+  // 恢復取消按鈕
+  const cancelBtn = document.getElementById('catCancelBtn');
+  if (cancelBtn) { cancelBtn.textContent = '✕ 清除'; cancelBtn.classList.remove('btn-danger'); cancelBtn.classList.add('btn-secondary'); }
 }
 
 // ── Render Table ──
