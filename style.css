@@ -4,7 +4,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&family=Share+Tech+Mono&display=swap');
 
-/* ── CSS Variables ── */
+/* ── CSS Variables（深色主題，預設）── */
 :root {
   --m-black:    #0A0A0F;
   --m-dark:     #111118;
@@ -34,6 +34,198 @@
   --font-display: 'Rajdhani', sans-serif;
   --font-body:    'Noto Sans TC', sans-serif;
   --font-mono:    'Share Tech Mono', monospace;
+}
+
+/* ── 淡色主題覆蓋 ── */
+[data-theme="light"] {
+  --m-black:   #F2F4F8;
+  --m-dark:    #E8ECF2;
+  --m-surface: #FFFFFF;
+  --m-card:    #FFFFFF;
+  --m-border:  #D0D6E0;
+
+  --m-blue:    #1558C0;
+  --m-blue-lt: #1C69D4;
+  --m-red:     #B01020;
+  --m-red-lt:  #CC1226;
+  --m-violet:  #6A1890;
+  --m-violet-lt:#7B1FA2;
+  --m-green:   #14703C;
+  --m-green-lt:#1B8A4C;
+  --m-orange:  #A84C00;
+  --m-orange-lt:#C45C00;
+
+  --m-white:   #1A1A2E;
+  --m-grey:    #5A5A72;
+  --m-grey-lt: #3A3A52;
+}
+
+/* ── 主題切換過渡動畫 ── */
+body, body * {
+  transition:
+    background-color 0.35s ease,
+    border-color     0.35s ease,
+    color            0.25s ease,
+    box-shadow       0.35s ease;
+}
+/* 排除動畫本身不需要 transition 的元素 */
+.m-stripe, .m-stripe-thin, .m-stripe-vert,
+.law-card-stripe, .modal-stripe { transition: none !important; }
+
+/* ── 淡色主題細節修正 ── */
+[data-theme="light"] body {
+  background: var(--m-black);
+}
+[data-theme="light"] .site-header {
+  box-shadow: 0 1px 8px rgba(0,0,0,0.1);
+}
+[data-theme="light"] .hero::before {
+  background:
+    radial-gradient(ellipse 60% 80% at 10% 50%, rgba(28,105,212,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 90% 50%, rgba(123,31,162,0.06) 0%, transparent 70%);
+}
+[data-theme="light"] .law-card {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+[data-theme="light"] .law-card:hover {
+  box-shadow: 0 6px 24px rgba(28,105,212,0.12);
+}
+[data-theme="light"] .modal {
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+[data-theme="light"] .article-block {
+  background: #F8F9FC;
+}
+[data-theme="light"] .json-output {
+  background: #F8F9FC;
+}
+[data-theme="light"] .paste-zone textarea {
+  background: #F8F9FC !important;
+}
+[data-theme="light"] .search-results-panel {
+  background: #FFFFFF;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+}
+[data-theme="light"] ::-webkit-scrollbar-track { background: #E8ECF2; }
+
+/* ── 主題切換按鈕 ── */
+.theme-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: 20px;
+  padding: 5px 12px 5px 8px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--m-grey-lt);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  transition: all 0.2s !important;
+}
+.theme-btn:hover {
+  border-color: var(--m-blue);
+  color: var(--m-white);
+}
+.theme-icon { font-size: 15px; line-height: 1; }
+
+/* ── 自動模式標記 ── */
+.theme-auto-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--m-green-lt);
+  animation: pulse-dot 2s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.7); }
+}
+
+/* ── 主題選單 ── */
+.theme-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--m-card);
+  border: 1px solid var(--m-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  min-width: 220px;
+  overflow: hidden;
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease !important;
+}
+.theme-menu.open {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateY(0);
+}
+.theme-menu-header {
+  padding: 10px 14px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--m-grey);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--m-border);
+}
+.theme-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: background 0.15s !important;
+  border-bottom: 1px solid var(--m-border);
+  font-size: 13px;
+  color: var(--m-grey-lt);
+}
+.theme-menu-item:last-child { border-bottom: none; }
+.theme-menu-item:hover { background: var(--m-surface); color: var(--m-white); }
+.theme-menu-item.active { color: var(--m-blue-lt); }
+.theme-menu-item.active .tmi-check { opacity: 1; }
+.tmi-icon { font-size: 17px; }
+.tmi-info { flex: 1; }
+.tmi-label { font-weight: 500; }
+.tmi-sub { font-size: 11px; color: var(--m-grey); margin-top: 1px; font-family: var(--font-mono); }
+.tmi-check { opacity: 0; color: var(--m-blue-lt); font-size: 14px; transition: opacity 0.15s !important; }
+
+/* ── 日照資訊條 ── */
+.sun-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: var(--m-surface);
+  border-bottom: 1px solid var(--m-border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--m-grey);
+  overflow: hidden;
+}
+.sun-bar-item { display: flex; align-items: center; gap: 5px; }
+.sun-bar-sep { opacity: 0.3; }
+.sun-progress {
+  flex: 1;
+  height: 3px;
+  background: var(--m-border);
+  border-radius: 2px;
+  overflow: hidden;
+  max-width: 120px;
+}
+.sun-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #FFB800, #FF6B00);
+  transition: width 1s linear !important;
 }
 
 /* ── Reset ── */
