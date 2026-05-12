@@ -368,6 +368,34 @@
     <p class="admin-page-sub">將整部法律全文複製後貼入，系統自動解析章節與條文，三步完成新增</p>
   </div>
 
+  <!-- ══════ 統計儀表板 ══════ -->
+  <div class="stat-dashboard" id="statDashboard">
+    <div class="stat-card blue">
+      <span class="stat-card-icon">📚</span>
+      <div class="stat-card-label">法規總數</div>
+      <div class="stat-card-value" id="dashLaws">0</div>
+      <div class="stat-card-sub" id="dashLawsSub">0 個類別</div>
+    </div>
+    <div class="stat-card red">
+      <span class="stat-card-icon">📄</span>
+      <div class="stat-card-label">條文總數</div>
+      <div class="stat-card-value" id="dashArts">0</div>
+      <div class="stat-card-sub" id="dashArtsSub">0 個章節</div>
+    </div>
+    <div class="stat-card violet">
+      <span class="stat-card-icon">📎</span>
+      <div class="stat-card-label">附件總數</div>
+      <div class="stat-card-value" id="dashFiles">0</div>
+      <div class="stat-card-sub" id="dashFilesSub">所有法規附件</div>
+    </div>
+    <div class="stat-card green">
+      <span class="stat-card-icon">🕐</span>
+      <div class="stat-card-label">最後更新</div>
+      <div class="stat-card-value" style="font-size:18px;padding-top:4px;" id="dashDate">—</div>
+      <div class="stat-card-sub" id="dashDateSub">最新修正法規</div>
+    </div>
+  </div>
+
   <!-- Step Indicator -->
   <div class="step-indicator">
     <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">貼入法條</div></div>
@@ -526,6 +554,17 @@
         </div>
 
         <div class="attach-list" id="attachList"></div>
+      </div>
+
+      <!-- ── 修正歷程時間軸 ── -->
+      <div style="margin-top:20px;">
+        <div class="form-card-header" style="margin:0 -24px 14px;padding-left:24px;">
+          <div class="m-stripe-vert"></div>
+          <span class="form-card-title">📅 修正歷程時間軸</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--m-grey);font-family:var(--font-mono);">選填，顯示於前台法規頁面</span>
+        </div>
+        <div id="tlEditorList"></div>
+        <button class="add-btn" onclick="addTlItem()" style="margin-top:4px;">＋ 新增修正紀錄</button>
       </div>
 
       <div class="action-row" style="border-top:1px solid var(--m-border);padding-top:20px;margin-top:20px;">
@@ -788,6 +827,8 @@ async function init() {
   populateCatSelect();
   renderTable();
   initCatManager();
+  initTlEditor([]);
+  renderDashboard();
   document.getElementById('cName').addEventListener('input', updateCatPreview);
   document.getElementById('pasteArea').addEventListener('input', () => {
     document.getElementById('charCount').textContent =
@@ -1063,14 +1104,18 @@ function saveLaw() {
   if (!title)    { showToast('⚠️','請填寫法規名稱',true); return; }
   if (!category) { showToast('⚠️','請選擇法規類別',true); return; }
 
+  // 確認有條文內容
+  if (!parsedChapters.length || parsedChapters.every(c => !c.articles?.length)) {
+    showToast('⚠️','條文內容為空，請回步驟 1 貼入法條後再儲存',true); return;
+  }
+
   let summary = document.getElementById('fSummary').value.trim();
   if (!summary && parsedChapters[0]?.articles[0])
     summary = parsedChapters[0].articles[0].content.slice(0,80) + '…';
 
   const lawId = editingId || Date.now();
 
-  // --- Save attachment files to localStorage ---
-  // First, clean up old attachments if editing
+  // 清理舊附件
   if (editingId) {
     const oldLaw = DB.laws.find(l => l.id === editingId);
     if (oldLaw?.attachments) {
@@ -1083,14 +1128,18 @@ function saveLaw() {
     }
   }
 
+  // 儲存附件
   const attachmentsMeta = [];
+  let attachFailed = false;
   pendingAttachments.forEach(a => {
     let dataKey = a.dataKey;
     if (!dataKey) {
-      // New file — store data separately
       dataKey = `eia-file-${lawId}-${a.id}`;
-      try { localStorage.setItem(dataKey, a.data); } catch(e) {
-        showToast('⚠️', `附件「${a.name}」儲存失敗（空間不足）`, true);
+      try {
+        localStorage.setItem(dataKey, a.data);
+      } catch(e) {
+        showToast('⚠️', `附件「${a.name}」儲存失敗（空間不足），其餘資料仍會嘗試儲存`, true);
+        attachFailed = true;
         return;
       }
     }
@@ -1105,6 +1154,7 @@ function saveLaw() {
     status:      document.getElementById('fStatus').value,
     chapters:    parsedChapters,
     attachments: attachmentsMeta,
+    history:     collectTlItems(),
   };
 
   if (editingId) {
@@ -1114,10 +1164,19 @@ function saveLaw() {
     DB.laws.push(law);
   }
 
-  saveDB(); renderTable(); setStep(4);
-  showToast('✅', editingId ? `「${title}」已更新` : `「${title}」已新增`);
-  editingId = null;
-  setTimeout(resetAll, 2000);
+  const ok = saveDB();
+  renderTable();
+
+  if (ok) {
+    setStep(4);
+    showToast('✅', editingId ? `「${title}」已更新` : `「${title}」已新增`);
+    editingId = null;
+    setTimeout(resetAll, 2000);
+  } else {
+    // 儲存失敗：從 DB 移除剛加入的資料，回到編輯狀態
+    if (!editingId) DB.laws = DB.laws.filter(l => l.id !== lawId);
+    showToast('❌', '儲存失敗，資料未寫入。請下載 JSON 備份或移除部分附件後重試', true);
+  }
 }
 
 // ── Edit ──
@@ -1143,6 +1202,7 @@ function editLaw(id) {
   document.getElementById('metaCardTitle').textContent = '✏️ 編輯法規資訊';
 
   loadExistingAttachments(law);
+  initTlEditor(law.history || []);
   renderPreview(parsedChapters);
   show('cardMeta'); setStep(3); scrollToCard('cardMeta');
   showToast('✏️', `正在編輯「${law.title}」`);
@@ -1164,6 +1224,7 @@ function deleteLaw(id) {
 function renderTable() {
   const tbody = document.getElementById('lawsTbody');
   document.getElementById('lawCount').textContent = DB.laws.length + ' 筆';
+  renderDashboard();
   if (!DB.laws.length) {
     tbody.innerHTML = `<tr class="no-data-row"><td colspan="7">尚無法規資料，請使用上方表單新增</td></tr>`;
     return;
@@ -1201,6 +1262,7 @@ function resetAll() {
   clearPaste();
   parsedChapters = []; editingId = null;
   pendingAttachments = []; renderAttachList();
+  initTlEditor([]);
   ['fTitle','fLawNumber','fLastAmended','fAuthority','fSummary'].forEach(id =>
     document.getElementById(id).value = '');
   document.getElementById('fCategory').value = '';
@@ -1520,7 +1582,82 @@ function renderCatTable() {
   });
 }
 
-// ══════════════════════════════ try { localStorage.setItem('eia-db', JSON.stringify(DB)); } catch(_){} }
+// ══════════════════════════════
+// 統計儀表板
+// ══════════════════════════════
+function renderDashboard() {
+  const laws = DB.laws, cats = DB.categories;
+  let totalArts=0, totalChs=0, totalFiles=0, latestDate='', latestName='';
+  laws.forEach(l => {
+    (l.chapters||[]).forEach(ch => { totalChs++; totalArts += ch.articles?.length||0; });
+    totalFiles += l.attachments?.length||0;
+    if (l.lastAmended && l.lastAmended > latestDate) { latestDate=l.lastAmended; latestName=l.title; }
+  });
+  document.getElementById('dashLaws').textContent    = laws.length;
+  document.getElementById('dashLawsSub').textContent = `${cats.length} 個類別`;
+  document.getElementById('dashArts').textContent    = totalArts;
+  document.getElementById('dashArtsSub').textContent = `${totalChs} 個章節`;
+  document.getElementById('dashFiles').textContent   = totalFiles;
+  document.getElementById('dashDate').textContent    = latestDate||'—';
+  document.getElementById('dashDateSub').textContent = latestName ? latestName.slice(0,10)+'…' : '尚無資料';
+}
+
+// ══════════════════════════════
+// 時間軸編輯
+// ══════════════════════════════
+let tlItemCount = 0;
+
+function initTlEditor(history) {
+  tlItemCount = 0;
+  document.getElementById('tlEditorList').innerHTML = '';
+  (history||[]).forEach(item => addTlItem(item.date, item.desc));
+}
+
+function addTlItem(date='', desc='') {
+  tlItemCount++;
+  const idx = tlItemCount;
+  const div = document.createElement('div');
+  div.className = 'tl-editor-item';
+  div.id = `tl-item-${idx}`;
+  div.innerHTML = `
+    <input type="text" class="form-input" style="flex:0 0 130px;"
+      placeholder="112年5月10日" value="${esc(date)}" id="tl-date-${idx}" />
+    <textarea class="form-textarea" style="flex:1;min-height:54px;font-size:13px;"
+      placeholder="修正說明（例：新增第16-1條…）" id="tl-desc-${idx}">${esc(desc)}</textarea>
+    <button class="remove-btn" onclick="document.getElementById('tl-item-${idx}').remove()">✕</button>`;
+  document.getElementById('tlEditorList').appendChild(div);
+}
+
+function collectTlItems() {
+  const items = [];
+  document.querySelectorAll('[id^="tl-item-"]').forEach(el => {
+    const idx  = el.id.replace('tl-item-','');
+    const date = document.getElementById(`tl-date-${idx}`)?.value.trim();
+    const desc = document.getElementById(`tl-desc-${idx}`)?.value.trim();
+    if (date) items.push({ date, desc: desc||'修正' });
+  });
+  return items.sort((a,b) => b.date.localeCompare(a.date));
+}
+
+// ══════════════════════════════
+// Storage / Export
+// ══════════════════════════════
+function saveDB() {
+  try {
+    const json = JSON.stringify(DB);
+    localStorage.setItem('eia-db', json);
+    return true;
+  } catch(e) {
+    // localStorage 滿了或被封鎖
+    showToast('❌', '儲存失敗：瀏覽器空間不足，請先下載 laws.json 備份再清理附件', true);
+    // 自動彈出下載備份
+    setTimeout(() => {
+      if (confirm('localStorage 空間不足，是否立即下載 laws.json 備份？')) downloadJSON();
+    }, 500);
+    return false;
+  }
+}
+
 function downloadJSON() {
   const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
   Object.assign(document.createElement('a'), {
@@ -1551,7 +1688,7 @@ function showToast(icon, msg, isError=false) {
   t.style.borderColor = isError ? 'var(--m-red)' : 'var(--m-blue)';
   t.classList.add('show');
   clearTimeout(t._tid);
-  t._tid = setTimeout(() => t.classList.remove('show'), 3000);
+  t._tid = setTimeout(() => t.classList.remove('show'), isError ? 6000 : 3000);
 }
 
 function esc(s) {
