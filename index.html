@@ -258,6 +258,11 @@
     <nav class="header-nav">
       <a href="index.html" class="nav-link active">法規查詢</a>
 
+      <!-- Ctrl+K 快捷搜尋 -->
+      <button class="nav-link" onclick="openCmdk()" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        🔍 <span style="font-family:var(--font-mono);font-size:10px;opacity:0.6;">Ctrl+K</span>
+      </button>
+
       <!-- 主題切換 -->
       <div style="position:relative;" id="themeWrap">
         <button class="theme-btn" onclick="toggleThemeMenu()" id="themeBtn">
@@ -407,6 +412,18 @@
       <div class="modal-attach-title">📎 附件下載</div>
       <div class="modal-attach-grid" id="modalAttachGrid"></div>
     </div>
+
+    <!-- 法規更新時間軸 -->
+    <div class="timeline-section" id="modalTimeline" style="display:none;">
+      <div class="timeline-toggle" id="tlToggle" onclick="toggleTimeline()">
+        <span>📅 修正歷程</span>
+        <span class="tl-arrow">›</span>
+        <span id="tlCount" style="font-size:11px;color:var(--m-grey);margin-left:4px;font-family:var(--font-mono);font-weight:400;"></span>
+      </div>
+      <div class="timeline-body" id="tlBody">
+        <div class="timeline-list" id="tlList"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -419,6 +436,40 @@
   </div>
   <iframe class="pdf-preview-frame"  id="previewFrame"    style="display:none;"></iframe>
   <img    class="img-preview-frame"  id="previewImg"      style="display:none;" alt="預覽" />
+</div>
+
+<!-- ══ CTRL+K 全站快捷搜尋 ══ -->
+<div class="cmdk-backdrop" id="cmdkBackdrop" onclick="closeCmdk(event)">
+  <div class="cmdk-box">
+    <div class="cmdk-input-row">
+      <span class="cmdk-icon">🔍</span>
+      <input class="cmdk-input" id="cmdkInput"
+        placeholder="搜尋法規名稱、條文關鍵字..."
+        autocomplete="off"
+        oninput="onCmdkInput()"
+        onkeydown="onCmdkKey(event)" />
+      <span class="cmdk-kbd">ESC 關閉</span>
+    </div>
+    <div class="cmdk-results" id="cmdkResults">
+      <div class="cmdk-empty">輸入關鍵字開始搜尋</div>
+    </div>
+    <div class="cmdk-footer">
+      <span class="cmdk-footer-hint"><span class="cmdk-kbd">↑↓</span> 選擇</span>
+      <span class="cmdk-footer-hint"><span class="cmdk-kbd">Enter</span> 開啟</span>
+      <span class="cmdk-footer-hint"><span class="cmdk-kbd">Ctrl+K</span> 呼出</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 行動版類別 Drawer ══ -->
+<button class="mobile-cat-btn" id="mobileCatBtn" onclick="openDrawer()">
+  ☰ 法規類別
+</button>
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
+<div class="cat-drawer" id="catDrawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-title">法規類別</div>
+  <div class="drawer-list" id="drawerList"></div>
 </div>
 
 <!-- ══ FOOTER ══ -->
@@ -1027,8 +1078,8 @@ function openModal(law, highlightQ, jumpToArtNum) {
     (ch.articles||[]).forEach((art, ai) => {
       const artId = `modal-art-${ci}-${ai}`;
       const contentHtml = q
-        ? highlightKeyword(escNl(art.content), q)
-        : escNl(art.content);
+        ? linkifyXrefs(highlightKeyword(escNl(art.content), q), law)
+        : linkifyXrefs(escNl(art.content), law);
       const isHit = q && (
         (art.content||'').toLowerCase().includes(q.toLowerCase()) ||
         (art.number||'').toLowerCase().includes(q.toLowerCase())
@@ -1055,6 +1106,9 @@ function openModal(law, highlightQ, jumpToArtNum) {
 
   // ── Render attachments ──
   renderModalAttachments(law);
+
+  // ── Render timeline ──
+  renderTimeline(law);
 
   // ── Jump to specific article ──
   if (jumpToArtNum) {
@@ -1121,8 +1175,8 @@ function modalSearch() {
       const isHit = art.content?.toLowerCase().includes(q) ||
                     art.number?.toLowerCase().includes(q);
       const contentHtml = isHit
-        ? highlightKeyword(escNl(art.content), q)
-        : escNl(art.content);
+        ? linkifyXrefs(highlightKeyword(escNl(art.content), q), currentLaw)
+        : linkifyXrefs(escNl(art.content), currentLaw);
       html += `
         <div class="article-block${isHit?' highlighted':''}" id="${artId}" data-art-num="${esc(art.number)}">
           <div class="article-number">${esc(art.number)}</div>
@@ -1196,9 +1250,21 @@ function closeModalDirect() {
   modalHits = []; modalHitIdx = -1;
 }
 document.addEventListener('keydown', e => {
+  // Ctrl+K → 開啟全站快捷搜尋
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    openCmdk();
+    return;
+  }
   if (e.key === 'Escape') {
+    if (document.getElementById('cmdkBackdrop').classList.contains('open')) {
+      closeCmdkDirect(); return;
+    }
     if (document.getElementById('previewBackdrop').classList.contains('open')) {
       closePreviewDirect(); return;
+    }
+    if (document.getElementById('catDrawer').classList.contains('open')) {
+      closeDrawer(); return;
     }
     closeModalDirect();
   }
@@ -1221,7 +1287,250 @@ function escNl(s) {
 }
 
 // ══════════════════════════════
-// INIT
+// FEATURE 1: Enter 搜尋（已有，補強）
+// ══════════════════════════════
+// onSearchKey 已處理 Enter，此處確保主搜尋欄 Enter 正確觸發
+// （已在 onSearchKey 內實作，無需額外程式）
+
+// ══════════════════════════════
+// FEATURE 2: Ctrl+K 全站快捷搜尋
+// ══════════════════════════════
+let cmdkFocusIdx = -1;
+let cmdkItems    = [];
+
+function openCmdk() {
+  document.getElementById('cmdkBackdrop').classList.add('open');
+  setTimeout(() => document.getElementById('cmdkInput').focus(), 50);
+  onCmdkInput();
+}
+function closeCmdk(e) {
+  if (!e || e.target === document.getElementById('cmdkBackdrop'))
+    document.getElementById('cmdkBackdrop').classList.remove('open');
+}
+function closeCmdkDirect() {
+  document.getElementById('cmdkBackdrop').classList.remove('open');
+}
+
+function onCmdkInput() {
+  const q = document.getElementById('cmdkInput').value.trim().toLowerCase();
+  const res = document.getElementById('cmdkResults');
+  cmdkItems = []; cmdkFocusIdx = -1;
+
+  if (!q) {
+    // Show all laws when empty
+    const all = DB.laws.slice(0, 12);
+    if (!all.length) { res.innerHTML = '<div class="cmdk-empty">尚無法規資料</div>'; return; }
+    let html = `<div class="cmdk-section-title">全部法規（${DB.laws.length} 筆）</div>`;
+    all.forEach((law, i) => {
+      const cat = DB.categories.find(c => c.id === law.category);
+      const iconHtml = cat?.iconType === 'image'
+        ? `<img src="${cat.iconData}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;">`
+        : (cat?.icon || cat?.iconData || '📄');
+      html += `<div class="cmdk-item" data-idx="${i}" onclick="cmdkOpen(${law.id})">
+        <span class="cmdk-item-icon">${iconHtml}</span>
+        <div class="cmdk-item-info">
+          <div class="cmdk-item-title">${esc(law.title)}</div>
+          <div class="cmdk-item-sub">${esc(cat?.name||'')} · ${law.lastAmended||'—'}</div>
+        </div>
+        <span class="cmdk-item-arrow">›</span>
+      </div>`;
+      cmdkItems.push(law.id);
+    });
+    res.innerHTML = html;
+    return;
+  }
+
+  // Search laws + articles
+  const hits = [];
+  DB.laws.forEach(law => {
+    const cat = DB.categories.find(c => c.id === law.category);
+    const iconHtml = cat?.iconType === 'image'
+      ? `<img src="${cat.iconData}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;">`
+      : (cat?.icon || cat?.iconData || '📄');
+
+    if (law.title.toLowerCase().includes(q)) {
+      hits.push({ type:'law', law, cat, iconHtml });
+    }
+    (law.chapters||[]).forEach(ch => {
+      (ch.articles||[]).forEach(art => {
+        if ((art.content||'').toLowerCase().includes(q) || (art.number||'').toLowerCase().includes(q)) {
+          hits.push({ type:'art', law, cat, iconHtml, art, ch });
+        }
+      });
+    });
+  });
+
+  if (!hits.length) { res.innerHTML = `<div class="cmdk-empty">找不到「${esc(q)}」相關結果</div>`; return; }
+
+  const lawHits = hits.filter(h => h.type === 'law').slice(0, 4);
+  const artHits = hits.filter(h => h.type === 'art').slice(0, 8);
+  let html = '';
+
+  if (lawHits.length) {
+    html += `<div class="cmdk-section-title">法規（${lawHits.length}）</div>`;
+    lawHits.forEach(h => {
+      const idx = cmdkItems.length;
+      html += `<div class="cmdk-item" data-idx="${idx}" onclick="cmdkOpen(${h.law.id})">
+        <span class="cmdk-item-icon">${h.iconHtml}</span>
+        <div class="cmdk-item-info">
+          <div class="cmdk-item-title">${highlightKeyword(esc(h.law.title), q)}</div>
+          <div class="cmdk-item-sub">${esc(h.cat?.name||'')} · ${h.law.lastAmended||'—'}</div>
+        </div><span class="cmdk-item-arrow">›</span></div>`;
+      cmdkItems.push({ lawId: h.law.id });
+    });
+  }
+  if (artHits.length) {
+    html += `<div class="cmdk-section-title">條文（${artHits.length} 筆符合）</div>`;
+    artHits.forEach(h => {
+      const idx = cmdkItems.length;
+      const snippet = makeSnippet(h.art.content, q, 60);
+      html += `<div class="cmdk-item" data-idx="${idx}" onclick="cmdkOpenArt(${h.law.id},'${esc(h.art.number)}')">
+        <span class="cmdk-item-icon">${h.iconHtml}</span>
+        <div class="cmdk-item-info">
+          <div class="cmdk-item-title">${esc(h.law.title)} · <span style="color:var(--m-blue-lt)">${esc(h.art.number)}</span></div>
+          <div class="cmdk-item-sub">${snippet}</div>
+        </div><span class="cmdk-item-arrow">›</span></div>`;
+      cmdkItems.push({ lawId: h.law.id, artNum: h.art.number });
+    });
+  }
+  res.innerHTML = html;
+}
+
+function onCmdkKey(e) {
+  const items = document.querySelectorAll('.cmdk-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    cmdkFocusIdx = Math.min(cmdkFocusIdx + 1, items.length - 1);
+    items.forEach((el,i) => el.classList.toggle('focused', i === cmdkFocusIdx));
+    items[cmdkFocusIdx]?.scrollIntoView({ block:'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    cmdkFocusIdx = Math.max(cmdkFocusIdx - 1, 0);
+    items.forEach((el,i) => el.classList.toggle('focused', i === cmdkFocusIdx));
+    items[cmdkFocusIdx]?.scrollIntoView({ block:'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (cmdkFocusIdx >= 0) items[cmdkFocusIdx]?.click();
+    else if (items.length) items[0].click();
+  } else if (e.key === 'Escape') {
+    closeCmdkDirect();
+  }
+}
+
+function cmdkOpen(lawId) {
+  const law = DB.laws.find(l => l.id === lawId);
+  if (!law) return;
+  closeCmdkDirect();
+  openModal(law, document.getElementById('cmdkInput').value.trim());
+}
+function cmdkOpenArt(lawId, artNum) {
+  const law = DB.laws.find(l => l.id === lawId);
+  if (!law) return;
+  closeCmdkDirect();
+  openModal(law, document.getElementById('cmdkInput').value.trim(), artNum);
+}
+
+// ══════════════════════════════
+// FEATURE 3: 行動版 Drawer
+// ══════════════════════════════
+function openDrawer() {
+  renderDrawer();
+  document.getElementById('drawerBackdrop').classList.add('open');
+  document.getElementById('catDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('drawerBackdrop').classList.remove('open');
+  document.getElementById('catDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function renderDrawer() {
+  const list = document.getElementById('drawerList');
+  const countMap = {};
+  DB.laws.forEach(l => { countMap[l.category] = (countMap[l.category]||0)+1; });
+
+  let html = `<button class="drawer-cat-btn${currentCategory==='all'?' active':''}" onclick="setCategory('all');closeDrawer();">
+    <span style="font-size:18px;">📚</span>全部法規
+    <span class="drawer-cat-count">${DB.laws.length}</span>
+  </button>`;
+  DB.categories.forEach(cat => {
+    const iconHtml = cat.iconType === 'image'
+      ? `<img src="${cat.iconData}" style="width:22px;height:22px;object-fit:cover;border-radius:3px;">`
+      : `<span style="font-size:18px;">${cat.icon||cat.iconData||'📁'}</span>`;
+    html += `<button class="drawer-cat-btn${currentCategory===cat.id?' active':''}"
+      onclick="setCategory('${cat.id}');closeDrawer();">
+      ${iconHtml}${esc(cat.name)}
+      <span class="drawer-cat-count">${countMap[cat.id]||0}</span>
+    </button>`;
+  });
+  list.innerHTML = html;
+}
+
+// ══════════════════════════════
+// FEATURE 4: 條文交叉引用
+// ══════════════════════════════
+function linkifyXrefs(html, law) {
+  // 偵測「第X條」、「第X條之Y」等格式
+  const re = /(第\s*[零一二三四五六七八九十百千\d]+(?:[-之]\d+)?\s*條(?:之[零一二三四五六七八九十\d]+)?)/g;
+  return html.replace(re, (match) => {
+    const numClean = match.replace(/\s/g,'');
+    return `<span class="art-xref" onclick="jumpToArt('${numClean.replace(/'/g,"\\'")}',event)" title="跳至 ${numClean}">${match}</span>`;
+  });
+}
+function jumpToArt(artNum, e) {
+  e.stopPropagation();
+  const body = document.getElementById('modalBody');
+  // 找出最接近的條文
+  const all = body.querySelectorAll('.article-block');
+  let target = null;
+  all.forEach(el => {
+    const num = el.dataset.artNum || '';
+    if (num.replace(/\s/g,'') === artNum.replace(/\s/g,'')) target = el;
+  });
+  if (target) {
+    target.scrollIntoView({ block:'center', behavior:'smooth' });
+    target.classList.add('jump-target');
+    setTimeout(() => target.classList.remove('jump-target'), 1800);
+  }
+}
+
+// ══════════════════════════════
+// FEATURE 5: 法規更新時間軸
+// ══════════════════════════════
+function renderTimeline(law) {
+  const section = document.getElementById('modalTimeline');
+  const list    = document.getElementById('tlList');
+  const countEl = document.getElementById('tlCount');
+  const history = law.history || [];
+
+  if (!history.length && !law.lastAmended) { section.style.display = 'none'; return; }
+
+  // 合併 lastAmended 作為最新一筆（若無重複）
+  let items = [...history];
+  if (law.lastAmended && !items.find(i => i.date === law.lastAmended)) {
+    items.unshift({ date: law.lastAmended, desc: '最新修正版本' });
+  }
+  items = items.sort((a,b) => b.date.localeCompare(a.date));
+
+  countEl.textContent = `${items.length} 筆`;
+  list.innerHTML = items.map(item => `
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-date">${esc(item.date)}</div>
+      <div class="tl-desc">${esc(item.desc || '修正')}</div>
+    </div>`).join('');
+
+  section.style.display = 'block';
+  // 重置展開狀態
+  document.getElementById('tlToggle').classList.remove('open');
+  document.getElementById('tlBody').classList.remove('open');
+}
+function toggleTimeline() {
+  document.getElementById('tlToggle').classList.toggle('open');
+  document.getElementById('tlBody').classList.toggle('open');
+}
+
+// ══════════════════════════════
 // ══════════════════════════════
 initTheme();
 loadData();
