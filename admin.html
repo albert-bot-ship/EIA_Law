@@ -1,0 +1,2079 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>後台管理 | 環評法律資料庫</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .paste-zone textarea {
+      width: 100%;
+      min-height: 420px;
+      background: var(--m-black);
+      border: 2px dashed var(--m-border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      color: var(--m-white);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.8;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .paste-zone textarea:focus {
+      border-color: var(--m-blue);
+      border-style: solid;
+      box-shadow: 0 0 0 4px rgba(28,105,212,0.1);
+    }
+    .paste-zone textarea::placeholder { color: var(--m-grey); line-height: 2; }
+
+    .parse-preview {
+      background: var(--m-black);
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .preview-header {
+      background: var(--m-surface);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--m-border);
+      flex-wrap: wrap;
+    }
+    .preview-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--m-grey);
+    }
+    .preview-stats {
+      display: flex;
+      gap: 16px;
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .preview-stat { display: flex; align-items: center; gap: 5px; color: var(--m-grey); }
+    .preview-stat strong { color: var(--m-white); }
+    .preview-body { max-height: 480px; overflow-y: auto; padding: 16px 18px; }
+    .preview-chapter { margin-bottom: 20px; }
+    .preview-chapter-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--m-blue-lt);
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .preview-chapter-title::after { content:''; flex:1; height:1px; background:var(--m-border); }
+    .preview-article {
+      display: flex;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      margin-bottom: 4px;
+      background: var(--m-surface);
+      border: 1px solid var(--m-border);
+    }
+    .preview-art-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--m-blue-lt);
+      min-width: 60px;
+      padding-top: 2px;
+      flex-shrink: 0;
+    }
+    .preview-art-content {
+      font-size: 12px;
+      color: var(--m-grey-lt);
+      line-height: 1.7;
+      white-space: pre-line;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Steps */
+    .step-indicator { display:flex; align-items:center; margin-bottom:28px; }
+    .step { display:flex; align-items:center; gap:8px; flex:1; }
+    .step-num {
+      width:28px; height:28px; border-radius:50%;
+      background:var(--m-surface); border:2px solid var(--m-border);
+      display:flex; align-items:center; justify-content:center;
+      font-family:var(--font-display); font-size:13px; font-weight:700;
+      color:var(--m-grey); flex-shrink:0; transition:all 0.2s;
+    }
+    .step.active .step-num { background:var(--m-blue); border-color:var(--m-blue); color:#fff; box-shadow:0 0 12px rgba(28,105,212,0.5); }
+    .step.done   .step-num { background:rgba(28,212,80,0.15); border-color:#30E060; color:#30E060; }
+    .step-label  { font-family:var(--font-display); font-size:12px; font-weight:600; color:var(--m-grey); letter-spacing:0.5px; }
+    .step.active .step-label { color:var(--m-blue-lt); }
+    .step.done   .step-label { color:#30E060; }
+    .step-line   { flex:1; height:1px; background:var(--m-border); max-width:40px; }
+
+    /* Meta form grid */
+    .meta-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
+    .meta-grid-2 { display:grid; grid-template-columns:2fr 1fr; gap:14px; margin-bottom:18px; }
+
+    /* Parse hint */
+    .parse-hint {
+      background:var(--m-surface);
+      border:1px solid var(--m-border);
+      border-left:3px solid var(--m-blue);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding:12px 16px;
+      font-size:12px;
+      color:var(--m-grey-lt);
+      line-height:1.9;
+      margin-bottom:16px;
+    }
+    .parse-hint code {
+      font-family:var(--font-mono);
+      color:var(--m-blue-lt);
+      background:rgba(28,105,212,0.1);
+      padding:1px 5px; border-radius:3px; font-size:11px;
+    }
+    .action-row { display:flex; align-items:center; gap:12px; margin-top:16px; flex-wrap:wrap; }
+    .divider { height:1px; background:var(--m-border); margin:28px 0; }
+
+    /* Laws table */
+    .laws-table { width:100%; border-collapse:collapse; }
+    .laws-table th {
+      font-family:var(--font-display); font-size:10px; font-weight:700;
+      letter-spacing:2px; text-transform:uppercase; color:var(--m-grey);
+      padding:10px 14px; text-align:left;
+      border-bottom:1px solid var(--m-border); background:var(--m-surface);
+    }
+    .laws-table td { padding:12px 14px; border-bottom:1px solid var(--m-border); vertical-align:middle; font-size:13px; }
+    .laws-table tr:last-child td { border-bottom:none; }
+    .laws-table tr:hover td { background:var(--m-surface); }
+    .td-title { color:var(--m-white); font-weight:500; }
+    .td-cat   { font-size:11px; font-family:var(--font-mono); color:var(--m-grey); }
+    .td-date  { font-size:11px; font-family:var(--font-mono); color:var(--m-grey); white-space:nowrap; }
+    .td-count { font-family:var(--font-mono); font-size:12px; color:var(--m-grey-lt); text-align:center; }
+    .td-actions { white-space:nowrap; }
+    .no-data-row td { text-align:center; padding:40px; color:var(--m-grey); }
+
+    .parse-mode-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      background: var(--m-surface);
+      border: 1px solid var(--m-border);
+      border-radius: 20px;
+      font-family: var(--font-display);
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+      color: var(--m-grey-lt);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .parse-mode-btn input[type="radio"] { display: none; }
+    .parse-mode-btn:hover { border-color: var(--m-blue); color: var(--m-white); }
+    .parse-mode-btn.active {
+      background: rgba(28,105,212,0.15);
+      border-color: var(--m-blue);
+      color: var(--m-blue-lt);
+    }
+
+    /* ── Category Manager ── */
+    .cat-manager-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width:800px) { .cat-manager-grid { grid-template-columns:1fr; } }
+
+    .cat-list-table { width:100%; border-collapse:collapse; }
+    .cat-list-table th {
+      font-family:var(--font-display); font-size:10px; font-weight:700;
+      letter-spacing:2px; text-transform:uppercase; color:var(--m-grey);
+      padding:8px 12px; text-align:left;
+      border-bottom:1px solid var(--m-border); background:var(--m-surface);
+    }
+    .cat-list-table td { padding:10px 12px; border-bottom:1px solid var(--m-border); vertical-align:middle; font-size:13px; }
+    .cat-list-table tr:last-child td { border-bottom:none; }
+    .cat-list-table tr:hover td { background:var(--m-surface); }
+    .cat-list-table tr.editing td { background:rgba(28,105,212,0.06); }
+
+    .cat-icon-cell { width:44px; text-align:center; }
+    .cat-icon-preview {
+      width: 36px; height: 36px;
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      background: var(--m-surface);
+      border: 1px solid var(--m-border);
+      overflow: hidden;
+    }
+    .cat-icon-preview img { width:100%; height:100%; object-fit:cover; border-radius:4px; }
+
+    .color-dot {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+
+    /* ── Icon Picker Panel ── */
+    .icon-picker {
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--m-black);
+    }
+    .icon-picker-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--m-border);
+      background: var(--m-surface);
+    }
+    .ipt {
+      flex: 1; padding: 9px 12px;
+      font-family:var(--font-display); font-size:12px; font-weight:700;
+      letter-spacing:1px; text-transform:uppercase;
+      color:var(--m-grey); background:none; border:none; cursor:pointer;
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .ipt.active { color:var(--m-blue-lt); border-bottom-color:var(--m-blue); }
+    .ipt:hover  { color:var(--m-white); }
+
+    .icon-tab-content { padding: 14px; }
+    .icon-tab-content.hidden { display:none; }
+
+    /* Emoji quick picks */
+    .emoji-grid {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+    }
+    .emoji-btn {
+      width: 34px; height: 34px;
+      font-size: 18px; border-radius: var(--radius);
+      background: var(--m-surface); border: 1px solid var(--m-border);
+      cursor: pointer; display:flex; align-items:center; justify-content:center;
+      transition: all 0.15s;
+    }
+    .emoji-btn:hover  { border-color:var(--m-blue); background:rgba(28,105,212,0.08); }
+    .emoji-btn.active { border-color:var(--m-blue-lt); background:rgba(28,105,212,0.18); }
+
+    .emoji-custom-row {
+      display: flex; gap: 8px; align-items: center; margin-top: 8px;
+    }
+    .emoji-input {
+      width: 56px; text-align:center; font-size: 20px;
+      background:var(--m-surface); border:1px solid var(--m-border);
+      border-radius:var(--radius); padding:6px 4px;
+      color:var(--m-white); outline:none;
+      transition: border-color 0.15s;
+    }
+    .emoji-input:focus { border-color:var(--m-blue); }
+
+    /* Image upload */
+    .img-upload-zone {
+      border: 2px dashed var(--m-border); border-radius: var(--radius);
+      padding: 16px; text-align:center; cursor:pointer;
+      transition: all 0.15s; position:relative;
+      background: var(--m-surface);
+    }
+    .img-upload-zone:hover, .img-upload-zone.dragover {
+      border-color:var(--m-blue); background:rgba(28,105,212,0.05);
+    }
+    .img-upload-zone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
+    .img-upload-zone .uz-icon { font-size:24px; margin-bottom:4px; }
+    .img-upload-zone .uz-text { font-size:12px; color:var(--m-grey); }
+    .img-preview-wrap {
+      position:relative; display:inline-block; margin-top:8px;
+    }
+    .img-preview-thumb {
+      width:56px; height:56px; border-radius:var(--radius);
+      object-fit:cover; border:1px solid var(--m-border); display:block;
+    }
+    .img-preview-clear {
+      position:absolute; top:-6px; right:-6px;
+      width:18px; height:18px; border-radius:50%;
+      background:var(--m-red); color:#fff; border:none;
+      font-size:10px; cursor:pointer; display:flex;
+      align-items:center; justify-content:center; line-height:1;
+    }
+
+    /* Color swatches */
+    .color-swatches {
+      display: flex; flex-wrap:wrap; gap: 8px; margin-top: 10px;
+    }
+    .color-swatch {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2px solid transparent; cursor: pointer;
+      transition: all 0.15s; position:relative;
+    }
+    .color-swatch.active {
+      border-color: var(--m-white);
+      box-shadow: 0 0 0 2px var(--m-blue);
+    }
+    .color-swatch:hover { transform:scale(1.15); }
+
+    .cat-form-inline {
+      display: flex; flex-direction:column; gap:12px;
+    }
+    .drag-handle {
+      color:var(--m-grey); cursor:grab; padding:0 4px; font-size:16px; user-select:none;
+    }
+    .drag-handle:active { cursor:grabbing; }
+  </style>
+</head>
+<body>
+
+<!-- ══════ HEADER ══════ -->
+<header class="site-header">
+  <div class="m-stripe"></div>
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-badge">M</div>
+      <div class="logo-text">
+        <span class="logo-title">環評法律資料庫</span>
+        <span class="logo-sub">EIA Legal Database</span>
+      </div>
+    </a>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link">← 回前台</a>
+
+      <!-- 主題切換 -->
+      <div style="position:relative;" id="themeWrap">
+        <button class="theme-btn" onclick="toggleThemeMenu()" id="themeBtn">
+          <span class="theme-icon">🌙</span>
+          <span>深色</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-menu-header">顯示主題</div>
+          <div class="theme-menu-item" id="tmi-auto" onclick="setThemeMode('auto')">
+            <span class="tmi-icon">🌤</span>
+            <div class="tmi-info"><div class="tmi-label">自動（台中日照）</div><div class="tmi-sub" id="tmiAutoSub">依日出日落自動切換</div></div>
+            <span class="tmi-check">✓</span>
+          </div>
+          <div class="theme-menu-item" id="tmi-light" onclick="setThemeMode('light')">
+            <span class="tmi-icon">☀️</span>
+            <div class="tmi-info"><div class="tmi-label">淡色模式</div><div class="tmi-sub">白底深字</div></div>
+            <span class="tmi-check">✓</span>
+          </div>
+          <div class="theme-menu-item active" id="tmi-dark" onclick="setThemeMode('dark')">
+            <span class="tmi-icon">🌙</span>
+            <div class="tmi-info"><div class="tmi-label">深色模式</div><div class="tmi-sub">BMW M Power 風格</div></div>
+            <span class="tmi-check">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <a href="admin.html" class="nav-link active">後台管理</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ══════ MAIN ══════ -->
+<div class="admin-layout">
+
+  <div class="admin-header-section">
+    <div class="m-stripe-thin" style="margin-bottom:20px;"></div>
+    <h1 class="admin-page-title">一鍵<span>貼入法條</span></h1>
+    <p class="admin-page-sub">將整部法律全文複製後貼入，系統自動解析章節與條文，三步完成新增</p>
+  </div>
+
+  <!-- ══════ 統計儀表板 ══════ -->
+  <div class="stat-dashboard" id="statDashboard">
+    <div class="stat-card blue">
+      <span class="stat-card-icon">📚</span>
+      <div class="stat-card-label">法規總數</div>
+      <div class="stat-card-value" id="dashLaws">0</div>
+      <div class="stat-card-sub" id="dashLawsSub">0 個類別</div>
+    </div>
+    <div class="stat-card red">
+      <span class="stat-card-icon">📄</span>
+      <div class="stat-card-label">條文總數</div>
+      <div class="stat-card-value" id="dashArts">0</div>
+      <div class="stat-card-sub" id="dashArtsSub">0 個章節</div>
+    </div>
+    <div class="stat-card violet">
+      <span class="stat-card-icon">📎</span>
+      <div class="stat-card-label">附件總數</div>
+      <div class="stat-card-value" id="dashFiles">0</div>
+      <div class="stat-card-sub" id="dashFilesSub">所有法規附件</div>
+    </div>
+    <div class="stat-card green">
+      <span class="stat-card-icon">🕐</span>
+      <div class="stat-card-label">最後更新</div>
+      <div class="stat-card-value" style="font-size:18px;padding-top:4px;" id="dashDate">—</div>
+      <div class="stat-card-sub" id="dashDateSub">最新修正法規</div>
+    </div>
+  </div>
+
+  <!-- Step Indicator -->
+  <div class="step-indicator">
+    <div class="step active" id="step1"><div class="step-num">1</div><div class="step-label">貼入法條</div></div>
+    <div class="step-line"></div>
+    <div class="step" id="step2"><div class="step-num">2</div><div class="step-label">確認解析</div></div>
+    <div class="step-line"></div>
+    <div class="step" id="step3"><div class="step-num">3</div><div class="step-label">填寫資訊</div></div>
+    <div class="step-line"></div>
+    <div class="step" id="step4"><div class="step-num">4</div><div class="step-label">儲存完成</div></div>
+  </div>
+
+  <!-- ── CARD 1：貼入 ── -->
+  <div class="form-card" id="cardPaste">
+    <div class="form-card-header">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title">📋 貼入法律全文</span>
+    </div>
+    <div class="form-card-body">
+
+      <div class="parse-hint">
+        💡 直接將整部法律 / 規範的文字複製後貼入，選擇對應格式後按「自動解析」：<br>
+        &nbsp;&nbsp;• <code>第一章 總則</code>、<code>第二章 評估</code> → 自動識別為章標題（所有模式通用）<br>
+        &nbsp;&nbsp;• <strong>法律條文</strong>：以「第 1 條」、「第一條」為條文分界<br>
+        &nbsp;&nbsp;• <strong>條列式規範</strong>：以「一、」「二、」「（一）」等中文編號為項目分界<br>
+        &nbsp;&nbsp;• <strong>段落式</strong>：以空白行區隔，每段為一個項目（適合無特定編號的規範）
+      </div>
+
+      <!-- 解析模式選擇 -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;" id="parseModeRow">
+        <span style="font-family:var(--font-display);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--m-grey);align-self:center;">解析模式：</span>
+        <label class="parse-mode-btn active" id="pm-article">
+          <input type="radio" name="parseMode" value="article" checked> ⚖️ 法律條文（第X條）
+        </label>
+        <label class="parse-mode-btn" id="pm-list">
+          <input type="radio" name="parseMode" value="list"> 📋 條列式規範（一、二、）
+        </label>
+        <label class="parse-mode-btn" id="pm-para">
+          <input type="radio" name="parseMode" value="para"> 📝 段落式（空行分段）
+        </label>
+      </div>
+
+      <div class="paste-zone">
+        <textarea id="pasteArea"
+          placeholder="在此貼入法律全文...
+
+範例格式：
+
+環境影響評估法
+
+第一章  總則
+
+第 1 條
+為預防及減輕開發行為對環境造成不良影響，藉以達成環境保護之目的，
+特制定本法。本法未規定者，適用其他有關法律之規定。
+
+第 2 條
+本法專用名詞定義如下：
+一、開發行為：指依第五條規定之行為。
+二、環境影響評估：指開發行為或政府政策對環境...
+
+第二章  評估、審查及監督
+
+第 3 條
+各級政府及目的事業主管機關在該管轄範圍內，應推動落實環境影響評估工作。
+"></textarea>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="parseContent()">⚙️ 自動解析</button>
+        <button class="btn btn-secondary" onclick="clearPaste()">✕ 清除</button>
+        <span id="charCount" style="margin-left:auto;font-family:var(--font-mono);font-size:12px;color:var(--m-grey);">0 字元</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CARD 2：預覽 ── -->
+  <div class="form-card" id="cardPreview" style="display:none;">
+    <div class="form-card-header">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title">🔍 解析結果預覽</span>
+    </div>
+    <div class="form-card-body">
+      <div class="parse-preview">
+        <div class="preview-header">
+          <span class="preview-title">解析結果</span>
+          <div class="preview-stats">
+            <div class="preview-stat">章節 <strong id="statChapters">0</strong></div>
+            <div class="preview-stat">條文 <strong id="statArticlesP">0</strong></div>
+            <div class="preview-stat">字數 <strong id="statChars">0</strong></div>
+          </div>
+        </div>
+        <div class="preview-body" id="previewBody"></div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="goToMeta()">✅ 確認，填寫資訊 →</button>
+        <button class="btn btn-secondary" onclick="backToPaste()">← 重新貼入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CARD 3：資訊 ── -->
+  <div class="form-card" id="cardMeta" style="display:none;">
+    <div class="form-card-header">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title" id="metaCardTitle">📝 填寫法規資訊</span>
+    </div>
+    <div class="form-card-body">
+
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">法規名稱 *</label>
+        <input type="text" id="fTitle" class="form-input" placeholder="例：環境影響評估法" />
+      </div>
+
+      <div class="meta-grid">
+        <div class="form-group">
+          <label class="form-label">法規類別 *</label>
+          <select id="fCategory" class="form-select">
+            <option value="">請選擇類別</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">現行狀態</label>
+          <select id="fStatus" class="form-select">
+            <option value="現行">現行</option>
+            <option value="廢止">廢止</option>
+            <option value="草案">草案</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">最新修正日期</label>
+          <input type="text" id="fLastAmended" class="form-input" placeholder="例：112年5月10日" />
+        </div>
+      </div>
+
+      <div class="meta-grid-2">
+        <div class="form-group">
+          <label class="form-label">法規字號 / 制定日期</label>
+          <input type="text" id="fLawNumber" class="form-input" placeholder="例：中華民國 83 年 12 月 30 日" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">主管機關</label>
+          <input type="text" id="fAuthority" class="form-input" placeholder="例：環境部" />
+        </div>
+      </div>
+
+      <!-- FL 法規代號 -->
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">🔗 FL 法規代號（環境部法規資料庫追蹤用）</label>
+        <div class="fl-input-row">
+          <input type="text" id="fFlCode" class="form-input"
+            placeholder="例：FL016236（可在 oaout.moenv.gov.tw 網址列找到）"
+            style="font-family:var(--font-mono);letter-spacing:1px;"
+            oninput="onFlCodeInput()" />
+          <a id="fFlLink" href="#" target="_blank" class="fl-link-btn" style="display:none;">
+            🔗 開啟官方頁面
+          </a>
+        </div>
+        <div style="font-size:11px;color:var(--m-grey);margin-top:5px;font-family:var(--font-mono);">
+          填入後可自動追蹤法規是否有新版本。格式：FL######
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">法規摘要（選填，留空則自動取第一條）</label>
+        <textarea id="fSummary" class="form-textarea" rows="2" placeholder="簡述立法目的或重點..."></textarea>
+      </div>
+
+      <!-- ── Attachments ── -->
+      <div style="margin-top:20px;">
+        <div class="form-card-header" style="margin:0 -24px 14px;padding-left:24px;">
+          <div class="m-stripe-vert"></div>
+          <span class="form-card-title">📎 上傳附件</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--m-grey);font-family:var(--font-mono);">PDF、Word、圖片等，單檔上限 8MB</span>
+        </div>
+
+        <div class="upload-dropzone" id="dropzone"
+          ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+          <input type="file" id="fileInput" multiple
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp,.zip,.txt,.csv"
+            onchange="onFileChange(event)" />
+          <div class="upload-drop-icon">📂</div>
+          <div class="upload-drop-title">拖放檔案到此，或點擊選擇</div>
+          <div class="upload-drop-sub">支援 <code>PDF</code> <code>Word</code> <code>Excel</code> <code>PPT</code> <code>圖片</code> <code>ZIP</code> 等格式</div>
+        </div>
+        <div class="upload-progress" id="uploadProgress">
+          <div class="upload-progress-bar" id="uploadProgressBar"></div>
+        </div>
+
+        <div class="attach-list" id="attachList"></div>
+      </div>
+
+      <!-- ── 修正歷程時間軸 ── -->
+      <div style="margin-top:20px;">
+        <div class="form-card-header" style="margin:0 -24px 14px;padding-left:24px;">
+          <div class="m-stripe-vert"></div>
+          <span class="form-card-title">📅 修正歷程時間軸</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--m-grey);font-family:var(--font-mono);">選填，顯示於前台法規頁面</span>
+        </div>
+        <div id="tlEditorList"></div>
+        <button class="add-btn" onclick="addTlItem()" style="margin-top:4px;">＋ 新增修正紀錄</button>
+      </div>
+
+      <div class="action-row" style="border-top:1px solid var(--m-border);padding-top:20px;margin-top:20px;">
+        <button class="btn btn-primary" onclick="saveLaw()">💾 儲存至資料庫</button>
+        <button class="btn btn-secondary" onclick="backToPreview()">← 回預覽</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ CATEGORY MANAGER ══════ -->
+  <div class="divider"></div>
+
+  <div class="form-card">
+    <div class="form-card-header" style="flex-wrap:wrap;gap:10px;">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title" style="font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">🗂 類別管理</span>
+      <span id="catCount" style="margin-left:auto;font-size:12px;color:var(--m-grey);font-family:var(--font-mono);">0 個類別</span>
+    </div>
+    <div class="form-card-body">
+      <div class="cat-manager-grid">
+
+        <!-- 左：類別清單 -->
+        <div>
+          <div style="overflow-x:auto;">
+            <table class="cat-list-table" id="catTable">
+              <thead>
+                <tr>
+                  <th style="width:20px;"></th>
+                  <th style="width:44px;">圖示</th>
+                  <th>類別名稱</th>
+                  <th>顏色</th>
+                  <th style="text-align:center;">法規數</th>
+                  <th style="text-align:center;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="catTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 右：新增 / 編輯表單 -->
+        <div>
+          <div class="form-card" style="margin:0;background:var(--m-surface);">
+            <div class="form-card-header">
+              <div class="m-stripe-vert"></div>
+              <span class="form-card-title" style="font-size:13px;" id="catFormTitle">➕ 新增類別</span>
+            </div>
+            <div class="form-card-body" style="padding:16px;">
+              <div class="cat-form-inline">
+
+                <!-- 名稱 -->
+                <div class="form-group">
+                  <label class="form-label">類別名稱 *</label>
+                  <input type="text" id="cName" class="form-input" placeholder="例：環境影響評估法" />
+                </div>
+
+                <!-- 圖示選擇器 -->
+                <div class="form-group">
+                  <label class="form-label">類別圖示</label>
+                  <div class="icon-picker">
+                    <div class="icon-picker-tabs">
+                      <button class="ipt active" onclick="switchIconTab('emoji')">Emoji</button>
+                      <button class="ipt"        onclick="switchIconTab('image')">上傳圖片</button>
+                    </div>
+
+                    <!-- Emoji Tab -->
+                    <div class="icon-tab-content" id="tabEmoji">
+                      <div class="emoji-grid" id="emojiGrid"></div>
+                      <div class="emoji-custom-row">
+                        <input type="text" id="emojiCustom" class="emoji-input"
+                          maxlength="4" placeholder="✏️"
+                          oninput="onCustomEmoji()" />
+                        <span style="font-size:12px;color:var(--m-grey);">自行輸入 Emoji</span>
+                      </div>
+                    </div>
+
+                    <!-- Image Tab -->
+                    <div class="icon-tab-content hidden" id="tabImage">
+                      <div class="img-upload-zone" id="catImgZone"
+                        ondragover="catImgDragOver(event)" ondragleave="catImgDragLeave()"
+                        ondrop="catImgDrop(event)">
+                        <input type="file" accept="image/*" onchange="catImgChange(event)" />
+                        <div class="uz-icon">🖼️</div>
+                        <div class="uz-text">點擊或拖放圖片<br>建議正方形，PNG/JPG</div>
+                      </div>
+                      <div id="catImgPreview" style="text-align:center;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 顏色 -->
+                <div class="form-group">
+                  <label class="form-label">強調色</label>
+                  <div class="color-swatches" id="colorSwatches"></div>
+                </div>
+
+                <!-- 預覽 -->
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--m-black);border-radius:var(--radius);border:1px solid var(--m-border);">
+                  <div class="cat-icon-preview" id="catPreviewIcon">❓</div>
+                  <div>
+                    <div style="font-size:13px;font-weight:500;color:var(--m-white);" id="catPreviewName">類別預覽</div>
+                    <div style="font-size:11px;font-family:var(--font-mono);color:var(--m-grey);margin-top:2px;" id="catPreviewColor">—</div>
+                  </div>
+                </div>
+
+                <!-- 按鈕 -->
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-primary" style="flex:1;" onclick="saveCat()">💾 儲存類別</button>
+                  <button class="btn btn-secondary" id="catCancelBtn" onclick="resetCatForm()">✕ 清除</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ LAW LIST ══════ -->
+  <div class="divider"></div>
+
+  <div class="form-card">
+    <div class="form-card-header" style="flex-wrap:wrap;gap:10px;">
+      <div class="m-stripe-vert"></div>
+      <span class="form-card-title" style="font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">📋 已儲存的法規</span>
+      <span id="lawCount" style="margin-left:auto;font-size:12px;color:var(--m-grey);font-family:var(--font-mono);">0 筆</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="check-all-btn" id="checkAllBtn" onclick="checkAllLaws()">🔄 全部檢查更新</button>
+        <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="downloadJSON()">⬇️ 下載 laws.json</button>
+        <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="toggleImport()">📤 匯入 JSON</button>
+      </div>
+    </div>
+
+    <div id="importArea" style="display:none;padding:16px 20px;border-bottom:1px solid var(--m-border);background:var(--m-surface);">
+      <label class="form-label" style="display:block;margin-bottom:8px;">貼入 laws.json 內容（將覆蓋所有現有資料）</label>
+      <textarea id="importText" class="form-textarea" rows="5" placeholder="貼入 JSON 內容..."></textarea>
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="btn btn-danger" onclick="importJSON()">⚠️ 確認匯入（覆蓋）</button>
+        <button class="btn btn-secondary" onclick="toggleImport()">取消</button>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="laws-table">
+        <thead>
+          <tr>
+            <th>法規名稱</th>
+            <th>類別</th>
+            <th>最新修正</th>
+            <th style="text-align:center;">章節</th>
+            <th style="text-align:center;">條文</th>
+            <th style="text-align:center;">附件</th>
+            <th style="text-align:center;">更新狀態</th>
+            <th style="text-align:center;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="lawsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /admin-layout -->
+
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toastIcon">✅</span>
+  <span id="toastMsg">已儲存</span>
+</div>
+
+<script>
+// ══════════════════════════════
+// THEME (同步 index.html 邏輯)
+// ══════════════════════════════
+const TAICHUNG_LAT = 24.1477, TAICHUNG_LNG = 120.6736;
+let themeMode  = localStorage.getItem('eia-theme') || 'dark';
+let sunriseMin = 360, sunsetMin = 1080;
+
+function applyTheme(mode) {
+  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+  const isDark = mode === 'dark' || (mode === 'auto' && (nowMin < sunriseMin || nowMin >= sunsetMin));
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  document.getElementById('themeBtn').innerHTML =
+    mode === 'auto'
+      ? `<span class="theme-icon">${isDark?'🌙':'☀️'}</span><span class="theme-auto-dot"></span><span>自動</span>`
+      : `<span class="theme-icon">${mode==='dark'?'🌙':'☀️'}</span><span>${mode==='dark'?'深色':'淡色'}</span>`;
+  ['auto','light','dark'].forEach(m => {
+    const el = document.getElementById('tmi-'+m);
+    if (el) el.classList.toggle('active', m === mode);
+  });
+}
+function setThemeMode(mode) {
+  themeMode = mode; localStorage.setItem('eia-theme', mode);
+  applyTheme(mode); closeThemeMenu();
+  if (mode === 'auto') fetchSunTimes();
+}
+function toggleThemeMenu() { document.getElementById('themeMenu').classList.toggle('open'); }
+function closeThemeMenu()  { document.getElementById('themeMenu').classList.remove('open'); }
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('themeWrap');
+  if (wrap && !wrap.contains(e.target)) closeThemeMenu();
+});
+async function fetchSunTimes() {
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${TAICHUNG_LAT}&longitude=${TAICHUNG_LNG}&daily=sunrise,sunset&timezone=Asia%2FTaipei&start_date=${today}&end_date=${today}`;
+    const data = await (await fetch(url)).json();
+    const r = new Date(data.daily.sunrise[0]), s = new Date(data.daily.sunset[0]);
+    sunriseMin = r.getHours()*60+r.getMinutes(); sunsetMin = s.getHours()*60+s.getMinutes();
+    const fmt = d => d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
+    const sub = document.getElementById('tmiAutoSub');
+    if (sub) sub.textContent = `日出 ${fmt(r)} · 日落 ${fmt(s)}`;
+    if (themeMode==='auto') applyTheme('auto');
+    setInterval(() => { if(themeMode==='auto') applyTheme('auto'); }, 60000);
+  } catch(_) {}
+}
+function initTheme() {
+  applyTheme(themeMode);
+  if (themeMode==='auto') fetchSunTimes();
+}
+initTheme();
+
+// ── State ──
+let DB = { categories: [], laws: [] };
+let parsedChapters = [];
+
+// FL 法規代號對照表（環境部法規資料庫）
+const FL_KNOWN = {
+  'eia-main':        'FL016236',
+  'eia-enforcement': 'FL016237',
+  'pollution':       'FL016247',
+  'nature':          'FL016238',
+};
+let editingId      = null;
+let pendingAttachments = []; // [{id, name, type, size, dataKey, data}]
+
+// ── Init ──
+async function init() {
+  try {
+    const res = await fetch('laws.json');
+    if (res.ok) DB = await res.json();
+  } catch(_) {}
+  const saved = localStorage.getItem('eia-db');
+  if (saved) { try { DB = JSON.parse(saved); } catch(_) {} }
+  // 預設類別清單（含新增項目）
+  const DEFAULT_CATS = [
+    { id:'eia-main',        name:'環境影響評估法',                           icon:'⚖️',  color:'blue'   },
+    { id:'eia-enforcement', name:'環境影響評估法施行細則',                    icon:'📋',  color:'red'    },
+    { id:'pollution',       name:'開發行為應實施環境影響評估細目及範圍認定標準', icon:'🏭',  color:'purple' },
+    { id:'nature',          name:'開發行為環境影響評估作業準則',               icon:'🌿',  color:'blue'   },
+    { id:'water',           name:'水資源相關法規',                            icon:'💧',  color:'red'    },
+    { id:'air',             name:'空氣品質相關法規',                          icon:'🌬️', color:'purple' },
+    { id:'waste',           name:'廢棄物相關法規',                            icon:'🗑️', color:'green'  },
+    { id:'noise',           name:'噪音污染相關法規',                          icon:'🔊',  color:'orange' },
+  ];
+  if (!DB.categories?.length) {
+    // 完全沒有類別 → 直接套用預設
+    DB.categories = DEFAULT_CATS;
+  } else {
+    // 有舊資料 → 把缺少的新類別補進去，不覆蓋已有的
+    const existingIds = new Set(DB.categories.map(c => c.id));
+    DEFAULT_CATS.forEach(cat => {
+      if (!existingIds.has(cat.id)) DB.categories.push(cat);
+    });
+  }
+  saveDB(); // 把更新後的類別同步回 localStorage
+
+  // 格式正規化：補上所有類別缺少的 iconType / iconData 欄位
+  normalizeCats();
+
+  // 自動補上已知 FL 代號（既有法規無代號時自動帶入）
+  let flUpdated = false;
+  DB.laws.forEach(law => {
+    if (!law.flCode && FL_KNOWN[law.category]) {
+      law.flCode = FL_KNOWN[law.category]; flUpdated = true;
+    }
+  });
+  if (flUpdated) saveDB();
+
+  populateCatSelect();
+  renderTable();
+  initCatManager();
+  initTlEditor([]);
+  renderDashboard();
+  document.getElementById('cName').addEventListener('input', updateCatPreview);
+  document.getElementById('pasteArea').addEventListener('input', () => {
+    document.getElementById('charCount').textContent =
+      document.getElementById('pasteArea').value.length.toLocaleString() + ' 字元';
+  });
+}
+
+function normalizeCats() {
+  // 讓每個類別都有 iconType / iconData，舊資料補上預設值
+  DB.categories = DB.categories.map(c => ({
+    ...c,
+    iconType: c.iconType || 'emoji',
+    iconData: c.iconData || c.icon || '📁',
+  }));
+  saveDB();
+}
+
+function populateCatSelect() {
+  const sel = document.getElementById('fCategory');
+  if (!sel) return;
+
+  // 若 DB.categories 空了，緊急補回預設值
+  if (!DB.categories?.length) normalizeCats();
+
+  const prev = sel.value; // 保留目前選擇
+  sel.innerHTML = '<option value="">— 請選擇類別 —</option>';
+  DB.categories.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id;
+    const prefix = c.iconType === 'image' ? '🖼 ' : (c.icon || c.iconData || '');
+    o.textContent = prefix + ' ' + c.name;
+    sel.appendChild(o);
+  });
+  if (prev) sel.value = prev; // 還原選擇
+}
+
+// ── Steps ──
+function setStep(n) {
+  [1,2,3,4].forEach(i => {
+    const el  = document.getElementById('step' + i);
+    const num = el.querySelector('.step-num');
+    el.className = 'step' + (i===n?' active': i<n?' done':'');
+    num.textContent = i < n ? '✓' : i;
+  });
+}
+
+// ── 模式切換 UI ──
+function switchParseMode(mode) {
+  document.querySelectorAll('.parse-mode-btn').forEach(el => {
+    el.classList.toggle('active', el.querySelector('input').value === mode);
+  });
+  // 更新 placeholder 說明
+  const placeholders = {
+    article: `在此貼入法律全文...\n\n範例（法律條文）：\n\n環境影響評估法\n\n第一章  總則\n\n第 1 條\n為預防及減輕開發行為對環境造成不良影響...\n\n第 2 條\n本法專用名詞定義如下：\n一、開發行為：...\n\n第二章  評估、審查及監督\n\n第 3 條\n各級政府及目的事業主管機關...`,
+    list:    `在此貼入規範／準則全文...\n\n範例（條列式規範）：\n\n開發行為環境影響評估作業準則\n\n第一章 總則\n\n一、為規範開發行為...\n\n二、本準則依環境影響評估法第...\n\n（一）第一類開發行為\n（二）第二類開發行為\n\n三、申請書件應包含：\n1. 開發計畫說明\n2. 環境現況描述`,
+    para:    `在此貼入純文字規範...\n\n範例（段落式，空一行即分段）：\n\n環境影響說明書審查規範\n\n本規範依據環境影響評估法第七條規定訂定，適用於第一類開發行為之環境影響評估審查作業。\n\n開發單位應於申請核准前，委託顧問公司進行環境影響評估，並依本規範格式撰寫環境影響說明書。\n\n環境影響說明書應詳實記載開發行為之目的、規模、位置及可能影響環境之內容。`,
+  };
+  document.getElementById('pasteArea').placeholder = placeholders[mode] || placeholders.article;
+}
+
+// 初始化綁定
+document.querySelectorAll('.parse-mode-btn input').forEach(radio => {
+  radio.addEventListener('change', () => switchParseMode(radio.value));
+});
+document.querySelectorAll('.parse-mode-btn').forEach(label => {
+  label.addEventListener('click', () => {
+    const radio = label.querySelector('input');
+    if (radio) { radio.checked = true; switchParseMode(radio.value); }
+  });
+});
+
+// ── Parse ──
+function getParseMode() {
+  const checked = document.querySelector('input[name="parseMode"]:checked');
+  return checked ? checked.value : 'article';
+}
+
+function parseContent() {
+  const raw  = document.getElementById('pasteArea').value.trim();
+  const mode = getParseMode();
+  if (!raw) { showToast('⚠️','請先貼入內容',true); return; }
+
+  let chapters = [];
+
+  if (mode === 'article') {
+    chapters = parseArticleMode(raw);
+  } else if (mode === 'list') {
+    chapters = parseListMode(raw);
+  } else {
+    chapters = parseParaMode(raw);
+  }
+
+  if (!chapters.length || chapters.every(c => !c.articles.length)) {
+    showToast('⚠️',`未識別到任何條目，請確認格式或切換「解析模式」`,true); return;
+  }
+
+  parsedChapters = chapters;
+
+  // 自動填入標題
+  const detectedTitle = detectTitle(raw);
+  if (detectedTitle && !document.getElementById('fTitle').value)
+    document.getElementById('fTitle').value = detectedTitle;
+
+  renderPreview(chapters);
+  show('cardPreview'); setStep(2);
+  document.getElementById('cardPreview').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ── 標題偵測（共用）──
+function detectTitle(raw) {
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章/;
+  const reArticle = /^第\s*[零一二三四五六七八九十百千\d]+\s*條/;
+  const reChinese = /^[一二三四五六七八九十]+[、．.]/;
+  const lines = raw.split(/\r?\n/);
+  for (let i = 0; i < Math.min(lines.length, 6); i++) {
+    const l = lines[i].trim();
+    if (l && !reChapter.test(l) && !reArticle.test(l) && !reChinese.test(l) && l.length < 40)
+      return l;
+  }
+  return '';
+}
+
+// ════════════════════
+// 模式 A：法律條文（第X條）
+// ════════════════════
+function parseArticleMode(raw) {
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章\s*.{0,50}$/;
+  const reArticle = /^第\s*([零一二三四五六七八九十百千\d]+(?:[-之]\d+)?)\s*條/;
+  const titleLine  = detectTitle(raw);
+  const lines = raw.split(/\r?\n/);
+  const chapters = [];
+  let curChapter = null, curArticle = null;
+
+  const flushArt = () => {
+    if (curArticle && curChapter) {
+      curArticle.content = curArticle.content.join('\n').trim();
+      curChapter.articles.push(curArticle);
+      curArticle = null;
+    }
+  };
+  const flushCh = () => { flushArt(); if (curChapter) { chapters.push(curChapter); curChapter = null; } };
+  const ensureCh = () => { if (!curChapter) curChapter = { title:'本文', articles:[] }; };
+
+  lines.forEach(rawLine => {
+    const line = rawLine.trim();
+    if (!line || line === titleLine) return;
+    if (reChapter.test(line)) { flushCh(); curChapter = { title:line, articles:[] }; return; }
+    if (reArticle.test(line)) {
+      flushArt(); ensureCh();
+      const m = line.match(/^(第\s*[^\s條]+\s*條)/);
+      curArticle = { number: m ? m[1].trim() : line, content:[] };
+      const rest = line.replace(/^第\s*[^\s條]+\s*條\s*/,'').trim();
+      if (rest) curArticle.content.push(rest);
+      return;
+    }
+    if (curArticle) curArticle.content.push(line);
+    else if (curChapter?.articles.length)
+      curChapter.articles[curChapter.articles.length-1].content += '\n'+line;
+  });
+  flushCh();
+  return chapters;
+}
+
+// ════════════════════
+// 模式 B：條列式規範（一、二、（一）、1. 等）
+// ════════════════════
+function parseListMode(raw) {
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章\s*.{0,50}$/;
+  // 匹配：一、 二、 （一） (1) 1. 1、 第一項 等
+  const reItem = /^(?:([一二三四五六七八九十百千\d]+)[、．.]|（([一二三四五六七八九十\d]+)）|\(([一二三四五六七八九十\d]+)\)|第([一二三四五六七八九十百千\d]+)[項款])/;
+  const titleLine = detectTitle(raw);
+  const lines = raw.split(/\r?\n/);
+  const chapters = [];
+  let curChapter = null, curItem = null;
+
+  const flushItem = () => {
+    if (curItem && curChapter) {
+      curItem.content = curItem.content.join('\n').trim();
+      curChapter.articles.push(curItem);
+      curItem = null;
+    }
+  };
+  const flushCh = () => { flushItem(); if (curChapter) { chapters.push(curChapter); curChapter = null; } };
+  const ensureCh = () => { if (!curChapter) curChapter = { title:'本文', articles:[] }; };
+
+  lines.forEach(rawLine => {
+    const line = rawLine.trim();
+    if (!line || line === titleLine) return;
+    if (reChapter.test(line)) { flushCh(); curChapter = { title:line, articles:[] }; return; }
+
+    const m = reItem.exec(line);
+    if (m) {
+      flushItem(); ensureCh();
+      // 取得編號
+      const num = m[1] || m[2] || m[3] || m[4];
+      const prefix = m[0]; // 完整前綴如「一、」
+      curItem = {
+        number: prefix.trim(),
+        content: [line.slice(prefix.length).trim()].filter(Boolean)
+      };
+      return;
+    }
+
+    // 不匹配條列 → 附加到當前項目
+    if (curItem) curItem.content.push(line);
+    else { ensureCh(); curChapter.articles.push({ number:'—', content:[line] }); }
+  });
+  flushCh();
+  return chapters;
+}
+
+// ════════════════════
+// 模式 C：段落式（空行分段）
+// ════════════════════
+function parseParaMode(raw) {
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章\s*.{0,50}$/;
+  const titleLine  = detectTitle(raw);
+  // 以一個以上的空行切分段落
+  const blocks = raw.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  const chapters = [];
+  let curChapter = null;
+
+  const ensureCh = () => { if (!curChapter) { curChapter = { title:'本文', articles:[] }; } };
+
+  let idx = 0;
+  blocks.forEach(block => {
+    const firstLine = block.split('\n')[0].trim();
+    if (firstLine === titleLine) return; // 跳過標題行
+    if (reChapter.test(firstLine)) {
+      if (curChapter) chapters.push(curChapter);
+      curChapter = { title:firstLine, articles:[] };
+      // 章標題後若同一 block 有內容，保留
+      const rest = block.split('\n').slice(1).join('\n').trim();
+      if (rest) { ensureCh(); curChapter.articles.push({ number:`段落 ${++idx}`, content:rest }); }
+      return;
+    }
+    ensureCh();
+    curChapter.articles.push({ number:`段落 ${++idx}`, content:block });
+  });
+  if (curChapter) chapters.push(curChapter);
+  return chapters;
+}
+
+function renderPreview(chapters) {
+  let totalArt = 0, html = '';
+  chapters.forEach(ch => {
+    totalArt += ch.articles.length;
+    html += `<div class="preview-chapter"><div class="preview-chapter-title">${esc(ch.title)}</div>`;
+    ch.articles.forEach(a => {
+      html += `<div class="preview-article">
+        <div class="preview-art-num">${esc(a.number)}</div>
+        <div class="preview-art-content">${esc(a.content)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('previewBody').innerHTML = html;
+  document.getElementById('statChapters').textContent  = chapters.length;
+  document.getElementById('statArticlesP').textContent = totalArt;
+  document.getElementById('statChars').textContent =
+    document.getElementById('pasteArea').value.length.toLocaleString();
+}
+
+// ── Navigation ──
+function goToMeta() {
+  // 每次進入步驟3都重新填充類別下拉，確保不會空白
+  populateCatSelect();
+  // 若有正在編輯的法規，保留原本選的類別
+  if (editingId) {
+    const law = DB.laws.find(l => l.id === editingId);
+    if (law) document.getElementById('fCategory').value = law.category;
+  }
+  show('cardMeta'); setStep(3); scrollToCard('cardMeta');
+}
+function backToPaste()   { show('cardPaste');   setStep(1); scrollToCard('cardPaste'); }
+function backToPreview() { show('cardPreview'); setStep(2); scrollToCard('cardPreview'); }
+function show(id) {
+  ['cardPaste','cardPreview','cardMeta'].forEach(c =>
+    document.getElementById(c).style.display = c===id ? '' : 'none');
+}
+function scrollToCard(id) { document.getElementById(id).scrollIntoView({ behavior:'smooth', block:'start' }); }
+
+// ══════════════════════════════
+// ATTACHMENT UPLOAD
+// ══════════════════════════════
+const FILE_ICONS = {
+  pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊',
+  ppt:'📋', pptx:'📋', jpg:'🖼️', jpeg:'🖼️', png:'🖼️',
+  gif:'🖼️', webp:'🖼️', zip:'🗜️', txt:'📃', csv:'📊',
+};
+const MAX_SIZE = 8 * 1024 * 1024; // 8 MB
+
+function fileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  return FILE_ICONS[ext] || '📎';
+}
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1048576)    return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.add('dragover');
+}
+function onDragLeave() {
+  document.getElementById('dropzone').classList.remove('dragover');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('dragover');
+  processFiles(Array.from(e.dataTransfer.files));
+}
+function onFileChange(e) {
+  processFiles(Array.from(e.target.files));
+  e.target.value = ''; // reset so same file can be re-added
+}
+
+function processFiles(files) {
+  if (!files.length) return;
+  const progress = document.getElementById('uploadProgress');
+  const bar      = document.getElementById('uploadProgressBar');
+  progress.style.display = 'block';
+  let done = 0;
+
+  files.forEach(file => {
+    if (file.size > MAX_SIZE) {
+      showToast('⚠️', `「${file.name}」超過 8MB 限制，已跳過`, true);
+      done++;
+      if (done === files.length) { setTimeout(() => progress.style.display='none', 600); }
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const data = e.target.result; // base64 data URL
+      const attach = {
+        id:      Date.now() + Math.random(),
+        name:    file.name,
+        type:    file.type || 'application/octet-stream',
+        size:    file.size,
+        dataKey: null,  // will be set on save
+        data:    data,  // temporary, stored separately on save
+      };
+      pendingAttachments.push(attach);
+      renderAttachList();
+      done++;
+      bar.style.width = (done / files.length * 100) + '%';
+      if (done === files.length) {
+        setTimeout(() => { progress.style.display='none'; bar.style.width='0%'; }, 600);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderAttachList() {
+  const list = document.getElementById('attachList');
+  if (!pendingAttachments.length) { list.innerHTML = ''; return; }
+  list.innerHTML = '';
+  pendingAttachments.forEach((a, i) => {
+    const item = document.createElement('div');
+    item.className = 'attach-item';
+    item.innerHTML = `
+      <span class="attach-type-icon">${fileIcon(a.name)}</span>
+      <div class="attach-info">
+        <div class="attach-name" title="${esc(a.name)}">${esc(a.name)}</div>
+        <div class="attach-meta">${formatSize(a.size)} · ${a.type}</div>
+      </div>
+      <span class="attach-status ok">✓ 已載入</span>
+      <button class="attach-del" onclick="removeAttach(${i})" title="移除">🗑</button>`;
+    list.appendChild(item);
+  });
+}
+
+function removeAttach(i) {
+  pendingAttachments.splice(i, 1);
+  renderAttachList();
+}
+
+// Load existing attachments when editing
+function loadExistingAttachments(law) {
+  pendingAttachments = [];
+  (law.attachments || []).forEach(meta => {
+    try {
+      const data = localStorage.getItem(meta.dataKey);
+      if (data) {
+        pendingAttachments.push({
+          id: meta.id, name: meta.name,
+          type: meta.type, size: meta.size,
+          dataKey: meta.dataKey, data
+        });
+      }
+    } catch(_) {}
+  });
+  renderAttachList();
+}
+
+// ── Save ──
+function saveLaw() {
+  const title    = document.getElementById('fTitle').value.trim();
+  const category = document.getElementById('fCategory').value;
+  if (!title)    { showToast('⚠️','請填寫法規名稱',true); return; }
+  if (!category) { showToast('⚠️','請選擇法規類別',true); return; }
+
+  // 確認有條文內容
+  if (!parsedChapters.length || parsedChapters.every(c => !c.articles?.length)) {
+    showToast('⚠️','條文內容為空，請回步驟 1 貼入法條後再儲存',true); return;
+  }
+
+  let summary = document.getElementById('fSummary').value.trim();
+  if (!summary && parsedChapters[0]?.articles[0])
+    summary = parsedChapters[0].articles[0].content.slice(0,80) + '…';
+
+  const lawId = editingId || Date.now();
+
+  // 清理舊附件
+  if (editingId) {
+    const oldLaw = DB.laws.find(l => l.id === editingId);
+    if (oldLaw?.attachments) {
+      const keepKeys = new Set(pendingAttachments.map(a => a.dataKey).filter(Boolean));
+      oldLaw.attachments.forEach(meta => {
+        if (!keepKeys.has(meta.dataKey)) {
+          try { localStorage.removeItem(meta.dataKey); } catch(_) {}
+        }
+      });
+    }
+  }
+
+  // 儲存附件
+  const attachmentsMeta = [];
+  let attachFailed = false;
+  pendingAttachments.forEach(a => {
+    let dataKey = a.dataKey;
+    if (!dataKey) {
+      dataKey = `eia-file-${lawId}-${a.id}`;
+      try {
+        localStorage.setItem(dataKey, a.data);
+      } catch(e) {
+        showToast('⚠️', `附件「${a.name}」儲存失敗（空間不足），其餘資料仍會嘗試儲存`, true);
+        attachFailed = true;
+        return;
+      }
+    }
+    attachmentsMeta.push({ id: a.id, name: a.name, type: a.type, size: a.size, dataKey });
+  });
+
+  const law = {
+    id: lawId, category, title, summary,
+    lawNumber:   document.getElementById('fLawNumber').value.trim(),
+    lastAmended: document.getElementById('fLastAmended').value.trim(),
+    authority:   document.getElementById('fAuthority').value.trim(),
+    flCode:      document.getElementById('fFlCode').value.trim().toUpperCase() || autoFillFlCode({category}),
+    status:      document.getElementById('fStatus').value,
+    chapters:    parsedChapters,
+    attachments: attachmentsMeta,
+    history:     collectTlItems(),
+  };
+
+  if (editingId) {
+    const i = DB.laws.findIndex(l => l.id === editingId);
+    if (i >= 0) DB.laws[i] = law; else DB.laws.push(law);
+  } else {
+    DB.laws.push(law);
+  }
+
+  const ok = saveDB();
+  renderTable();
+
+  if (ok) {
+    setStep(4);
+    showToast('✅', editingId ? `「${title}」已更新` : `「${title}」已新增`);
+    editingId = null;
+    setTimeout(resetAll, 2000);
+  } else {
+    // 儲存失敗：從 DB 移除剛加入的資料，回到編輯狀態
+    if (!editingId) DB.laws = DB.laws.filter(l => l.id !== lawId);
+    showToast('❌', '儲存失敗，資料未寫入。請下載 JSON 備份或移除部分附件後重試', true);
+  }
+}
+
+// ── Edit ──
+function editLaw(id) {
+  const law = DB.laws.find(l => l.id === id);
+  if (!law) return;
+  editingId = id;
+  parsedChapters = law.chapters || [];
+
+  let raw = law.title + '\n\n';
+  (law.chapters || []).forEach(ch => {
+    raw += ch.title + '\n\n';
+    ch.articles.forEach(a => { raw += a.number + '\n' + a.content + '\n\n'; });
+  });
+  document.getElementById('pasteArea').value     = raw.trim();
+  document.getElementById('fTitle').value        = law.title || '';
+  document.getElementById('fCategory').value     = law.category || '';
+  document.getElementById('fStatus').value       = law.status || '現行';
+  document.getElementById('fLawNumber').value    = law.lawNumber || '';
+  document.getElementById('fLastAmended').value  = law.lastAmended || '';
+  document.getElementById('fAuthority').value    = law.authority || '';
+  document.getElementById('fSummary').value      = law.summary || '';
+  const flCode = law.flCode || autoFillFlCode(law);
+  document.getElementById('fFlCode').value = flCode;
+  onFlCodeInput();
+  document.getElementById('metaCardTitle').textContent = '✏️ 編輯法規資訊';
+
+  loadExistingAttachments(law);
+  initTlEditor(law.history || []);
+  renderPreview(parsedChapters);
+  show('cardMeta'); setStep(3); scrollToCard('cardMeta');
+  showToast('✏️', `正在編輯「${law.title}」`);
+}
+
+function deleteLaw(id) {
+  const law = DB.laws.find(l => l.id === id);
+  if (!law || !confirm(`確定要刪除「${law.title}」嗎？`)) return;
+  // Clean up attachment files
+  (law.attachments || []).forEach(meta => {
+    try { localStorage.removeItem(meta.dataKey); } catch(_) {}
+  });
+  DB.laws = DB.laws.filter(l => l.id !== id);
+  saveDB(); renderTable();
+  showToast('🗑', `「${law.title}」已刪除`);
+}
+
+// ── Table ──
+function renderTable() {
+  const tbody = document.getElementById('lawsTbody');
+  document.getElementById('lawCount').textContent = DB.laws.length + ' 筆';
+  renderDashboard();
+  if (!DB.laws.length) {
+    tbody.innerHTML = `<tr class="no-data-row"><td colspan="8">尚無法規資料，請使用上方表單新增</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = '';
+  DB.laws.forEach(law => {
+    const cat      = DB.categories.find(c => c.id === law.category);
+    const chCount  = law.chapters?.length || 0;
+    const artCount = law.chapters?.reduce((s,c) => s + (c.articles?.length||0), 0) || 0;
+    const attCount = law.attachments?.length || 0;
+    const flCode   = law.flCode || '';
+    const status   = law.updateStatus || {};
+
+    // 更新狀態 badge
+    let statusHtml = '';
+    if (!flCode) {
+      statusHtml = `<span class="fl-badge no-code">無代號</span>`;
+    } else if (status.checking) {
+      statusHtml = `<span class="fl-badge checking">⏳ 檢查中</span>`;
+    } else if (status.result === 'up-to-date') {
+      statusHtml = `<span class="fl-badge up-to-date" title="檢查於 ${status.checkedAt||''}">✓ 最新</span>`;
+    } else if (status.result === 'outdated') {
+      statusHtml = `<span class="fl-badge outdated" title="政府最新：${status.govDate||''}">⚠ 有更新</span>`;
+    } else if (status.result === 'cors-blocked') {
+      statusHtml = `<span class="fl-badge checking" title="CORS 限制，請手動確認">⚡ 需手動</span>`;
+    } else if (status.result === 'error') {
+      statusHtml = `<span class="fl-badge no-code" title="${status.msg||''}">✕ 錯誤</span>`;
+    } else {
+      statusHtml = `<span class="fl-badge" title="點擊檢查更新">— 未檢查</span>`;
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="td-title">
+        ${esc(law.title)}
+        ${status.result==='outdated' ? `<span class="update-badge">🔴 有新版本</span>` : ''}
+      </td>
+      <td class="td-cat">${cat ? (cat.iconType==='image'?'🖼':cat.icon||cat.iconData||'')+' '+cat.name : law.category}</td>
+      <td class="td-date">${law.lastAmended||'—'}</td>
+      <td class="td-count">${chCount}</td>
+      <td class="td-count">${artCount}</td>
+      <td class="td-count">${attCount ? '📎 '+attCount : '—'}</td>
+      <td class="td-count" style="min-width:100px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          ${statusHtml}
+          ${flCode ? `<button class="fl-check-btn" id="chkbtn-${law.id}" onclick="checkOneLaw(${law.id})" title="${flCode}">🔄 檢查</button>` : ''}
+        </div>
+      </td>
+      <td class="td-actions">
+        <div class="law-list-actions" style="justify-content:center;">
+          ${flCode ? `<a href="https://oaout.moenv.gov.tw/law/LawContent.aspx?id=${flCode}" target="_blank" class="icon-btn" title="開啟官方頁面">🔗</a>` : ''}
+          <button class="icon-btn" onclick="editLaw(${law.id})" title="編輯">✏️</button>
+          <button class="icon-btn del" onclick="deleteLaw(${law.id})" title="刪除">🗑</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Reset ──
+function clearPaste() {
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('charCount').textContent = '0 字元';
+}
+function resetAll() {
+  clearPaste();
+  parsedChapters = []; editingId = null;
+  pendingAttachments = []; renderAttachList();
+  initTlEditor([]);
+  ['fTitle','fLawNumber','fLastAmended','fAuthority','fSummary','fFlCode'].forEach(id =>
+    document.getElementById(id).value = '');
+  document.getElementById('fCategory').value = '';
+  document.getElementById('fStatus').value   = '現行';
+  document.getElementById('metaCardTitle').textContent = '📝 填寫法規資訊';
+  show('cardPaste'); setStep(1);
+  document.querySelector('.admin-layout').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ══════════════════════════════
+// CATEGORY MANAGER
+// ══════════════════════════════
+
+const COLOR_OPTIONS = [
+  { id:'blue',   hex:'#1C69D4', label:'藍色' },
+  { id:'red',    hex:'#CC1226', label:'紅色' },
+  { id:'purple', hex:'#7B1FA2', label:'紫色' },
+  { id:'green',  hex:'#1B8A4C', label:'綠色' },
+  { id:'orange', hex:'#C45C00', label:'橙色' },
+  { id:'teal',   hex:'#0A7C6E', label:'青色' },
+  { id:'brown',  hex:'#7B4F2E', label:'棕色' },
+  { id:'pink',   hex:'#C2185B', label:'粉色' },
+];
+
+const EMOJI_PRESETS = [
+  '⚖️','📋','🏭','🌿','💧','🌬️','🗑️','🔊',
+  '🏗️','🌊','🌲','🔬','📊','🏔️','🌏','⚡',
+  '🚧','🐟','🦋','🌱','🔥','☁️','🌡️','🏞️',
+];
+
+let catIconType    = 'emoji';   // 'emoji' | 'image'
+let catIconValue   = '📁';      // current emoji or base64
+let catColorId     = 'blue';
+let editingCatId   = null;
+
+function initCatManager() {
+  // Build emoji grid
+  const grid = document.getElementById('emojiGrid');
+  grid.innerHTML = '';
+  EMOJI_PRESETS.forEach(e => {
+    const btn = document.createElement('button');
+    btn.className = 'emoji-btn'; btn.textContent = e; btn.type = 'button';
+    btn.onclick = () => selectEmoji(e);
+    grid.appendChild(btn);
+  });
+
+  // Build color swatches
+  const sw = document.getElementById('colorSwatches');
+  sw.innerHTML = '';
+  COLOR_OPTIONS.forEach(c => {
+    const s = document.createElement('div');
+    s.className = 'color-swatch' + (c.id === catColorId ? ' active' : '');
+    s.style.background = c.hex;
+    s.title = c.label;
+    s.onclick = () => selectColor(c.id, c.hex);
+    sw.appendChild(s);
+  });
+
+  selectEmoji(catIconValue);
+  renderCatTable();
+}
+
+// ── Icon Tab Switch ──
+function switchIconTab(tab) {
+  catIconType = tab;
+  document.getElementById('tabEmoji').classList.toggle('hidden', tab !== 'emoji');
+  document.getElementById('tabImage').classList.toggle('hidden', tab !== 'image');
+  document.querySelectorAll('.ipt').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='emoji')||(i===1&&tab==='image')));
+}
+
+// ── Emoji ──
+function selectEmoji(e) {
+  catIconType  = 'emoji';
+  catIconValue = e;
+  document.getElementById('emojiCustom').value = e;
+  document.querySelectorAll('.emoji-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent === e));
+  updateCatPreview();
+}
+function onCustomEmoji() {
+  const v = document.getElementById('emojiCustom').value.trim();
+  if (v) { catIconValue = v; catIconType = 'emoji'; }
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
+  updateCatPreview();
+}
+
+// ── Image ──
+function catImgDragOver(e) { e.preventDefault(); document.getElementById('catImgZone').classList.add('dragover'); }
+function catImgDragLeave()  { document.getElementById('catImgZone').classList.remove('dragover'); }
+function catImgDrop(e)      { e.preventDefault(); catImgDragLeave(); processCatImg(e.dataTransfer.files[0]); }
+function catImgChange(e)    { if (e.target.files[0]) processCatImg(e.target.files[0]); e.target.value=''; }
+
+function processCatImg(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    catIconType  = 'image';
+    catIconValue = ev.target.result;
+    showCatImgPreview(catIconValue);
+    updateCatPreview();
+  };
+  reader.readAsDataURL(file);
+}
+function showCatImgPreview(src) {
+  const wrap = document.getElementById('catImgPreview');
+  wrap.innerHTML = `
+    <div class="img-preview-wrap">
+      <img class="img-preview-thumb" src="${src}" />
+      <button class="img-preview-clear" onclick="clearCatImg()">✕</button>
+    </div>`;
+}
+function clearCatImg() {
+  catIconType = 'emoji'; catIconValue = '📁';
+  document.getElementById('catImgPreview').innerHTML = '';
+  updateCatPreview();
+}
+
+// ── Color ──
+function selectColor(id, hex) {
+  catColorId = id;
+  document.querySelectorAll('.color-swatch').forEach((s,i) =>
+    s.classList.toggle('active', COLOR_OPTIONS[i].id === id));
+  updateCatPreview();
+}
+
+// ── Preview ──
+function updateCatPreview() {
+  const iconEl  = document.getElementById('catPreviewIcon');
+  const nameEl  = document.getElementById('catPreviewName');
+  const colorEl = document.getElementById('catPreviewColor');
+  const name    = document.getElementById('cName').value.trim() || '類別預覽';
+  const col     = COLOR_OPTIONS.find(c => c.id === catColorId);
+
+  if (catIconType === 'image') {
+    iconEl.innerHTML = `<img src="${catIconValue}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">`;
+  } else {
+    iconEl.textContent = catIconValue || '📁';
+  }
+  iconEl.style.borderColor = col?.hex || '';
+  nameEl.textContent  = name;
+  colorEl.textContent = col?.label || '';
+  colorEl.style.color = col?.hex || '';
+
+  document.getElementById('cName').addEventListener('input', updateCatPreview, { once:false });
+}
+
+// ── Save Category ──
+function saveCat() {
+  const name = document.getElementById('cName').value.trim();
+  if (!name) { showToast('⚠️','請填寫類別名稱',true); return; }
+
+  const isImg = catIconType === 'image';
+
+  if (editingCatId) {
+    // 編輯現有類別（含預設類別），保留原本的 id
+    const idx = DB.categories.findIndex(c => c.id === editingCatId);
+    if (idx >= 0) {
+      DB.categories[idx] = {
+        ...DB.categories[idx],   // 保留 id 及其他欄位
+        name,
+        color:    catColorId,
+        icon:     isImg ? '🖼️' : catIconValue,
+        iconType: catIconType,
+        iconData: catIconValue,
+      };
+    }
+    showToast('✅', `「${name}」已更新`);
+  } else {
+    // 新增類別
+    const id = 'cat-' + Date.now();
+    DB.categories.push({
+      id, name, color: catColorId,
+      icon:     isImg ? '🖼️' : catIconValue,
+      iconType: catIconType,
+      iconData: catIconValue,
+    });
+    showToast('✅', `「${name}」已新增`);
+  }
+
+  saveDB();
+  populateCatSelect();
+  renderCatTable();
+  renderTable();
+  resetCatForm(); // 同時重置取消按鈕
+}
+
+// ── Edit Category ──
+// ── Edit Category ──
+function editCat(id) {
+  const cat = DB.categories.find(c => c.id === id);
+  if (!cat) return;
+  editingCatId = id;
+
+  // ── 填入表單 ──
+  document.getElementById('catFormTitle').textContent = `✏️ 編輯：${cat.name}`;
+  document.getElementById('cName').value = cat.name;
+
+  catColorId   = cat.color || 'blue';
+  catIconType  = cat.iconType || 'emoji';
+  catIconValue = cat.iconData || cat.icon || '📁';
+
+  // 顏色色票
+  document.querySelectorAll('.color-swatch').forEach((s, i) =>
+    s.classList.toggle('active', COLOR_OPTIONS[i].id === catColorId));
+
+  // 圖示 tab
+  if (catIconType === 'image') {
+    switchIconTab('image');
+    showCatImgPreview(catIconValue);
+  } else {
+    switchIconTab('emoji');
+    const input = document.getElementById('emojiCustom');
+    input.value = catIconValue;
+    // Emoji 比較：用 codePointAt 避免 Unicode 變體問題
+    const normalise = s => [...s].map(c => c.codePointAt(0)).join('-');
+    const targetNorm = normalise(catIconValue);
+    document.querySelectorAll('.emoji-btn').forEach(b =>
+      b.classList.toggle('active', normalise(b.textContent.trim()) === targetNorm));
+  }
+
+  updateCatPreview();
+
+  // ── 視覺：高亮正在編輯的列 ──
+  document.querySelectorAll('#catTbody tr').forEach(r =>
+    r.classList.toggle('editing', r.dataset.catId === id));
+
+  // ── 視覺：讓右側表單閃一下藍框 ──
+  const formCard = document.getElementById('catFormTitle').closest('.form-card');
+  formCard.style.transition = 'box-shadow 0.2s';
+  formCard.style.boxShadow  = '0 0 0 2px var(--m-blue), 0 0 20px rgba(28,105,212,0.3)';
+  setTimeout(() => formCard.style.boxShadow = '', 1800);
+
+  // ── 捲動到右側表單（手機版為單欄，需捲動） ──
+  formCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // 更新取消按鈕文字
+  const cancelBtn = document.getElementById('catCancelBtn');
+  if (cancelBtn) { cancelBtn.textContent = '✕ 取消編輯'; cancelBtn.classList.add('btn-danger'); cancelBtn.classList.remove('btn-secondary'); }
+
+  showToast('✏️', `正在編輯「${cat.name}」，修改後按「儲存類別」`);
+}
+
+// ── Delete Category ──
+function deleteCat(id) {
+  const cat  = DB.categories.find(c => c.id === id);
+  const used = DB.laws.some(l => l.category === id);
+  if (!cat) return;
+  if (used && !confirm(`「${cat.name}」底下已有法規，刪除類別後這些法規將無類別，確定刪除？`)) return;
+  if (!used && !confirm(`確定要刪除「${cat.name}」嗎？`)) return;
+  DB.categories = DB.categories.filter(c => c.id !== id);
+  saveDB(); populateCatSelect(); renderCatTable(); renderTable();
+  showToast('🗑', `「${cat.name}」已刪除`);
+  if (editingCatId === id) resetCatForm();
+}
+
+// ── Reset ──
+function resetCatForm() {
+  editingCatId = null;
+  document.getElementById('cName').value = '';
+  document.getElementById('catFormTitle').textContent = '➕ 新增類別';
+  catIconType = 'emoji'; catIconValue = '📁'; catColorId = 'blue';
+  document.getElementById('emojiCustom').value = '';
+  document.getElementById('catImgPreview').innerHTML = '';
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.color-swatch').forEach((s,i) =>
+    s.classList.toggle('active', COLOR_OPTIONS[i].id === 'blue'));
+  document.querySelectorAll('#catTbody tr').forEach(r => r.classList.remove('editing'));
+  // 清除藍框
+  const formCard = document.getElementById('catFormTitle').closest('.form-card');
+  if (formCard) formCard.style.boxShadow = '';
+  switchIconTab('emoji');
+  updateCatPreview();
+  // 恢復取消按鈕
+  const cancelBtn = document.getElementById('catCancelBtn');
+  if (cancelBtn) { cancelBtn.textContent = '✕ 清除'; cancelBtn.classList.remove('btn-danger'); cancelBtn.classList.add('btn-secondary'); }
+}
+
+// ── Render Table ──
+function renderCatTable() {
+  const tbody = document.getElementById('catTbody');
+  document.getElementById('catCount').textContent = DB.categories.length + ' 個類別';
+  const lawCountMap = {};
+  DB.laws.forEach(l => { lawCountMap[l.category] = (lawCountMap[l.category]||0)+1; });
+
+  if (!DB.categories.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--m-grey);">尚無類別</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  DB.categories.forEach(cat => {
+    const col    = COLOR_OPTIONS.find(c => c.id === cat.color);
+    const count  = lawCountMap[cat.id] || 0;
+    const isImg  = cat.iconType === 'image';
+    const iconHtml = isImg
+      ? `<div class="cat-icon-preview"><img src="${cat.iconData}" /></div>`
+      : `<div class="cat-icon-preview">${cat.icon||cat.iconData||'📁'}</div>`;
+
+    const tr = document.createElement('tr');
+    tr.dataset.catId = cat.id;
+    tr.innerHTML = `
+      <td><span class="drag-handle">⠿</span></td>
+      <td class="cat-icon-cell">${iconHtml}</td>
+      <td style="color:var(--m-white);font-weight:500;">${esc(cat.name)}</td>
+      <td>
+        <span class="color-dot" style="background:${col?.hex||'#888'};"></span>
+        <span style="font-size:11px;color:var(--m-grey);">${col?.label||cat.color}</span>
+      </td>
+      <td style="text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--m-grey-lt);">${count}</td>
+      <td>
+        <div class="law-list-actions" style="justify-content:center;">
+          <button class="icon-btn" onclick="editCat('${cat.id}')" title="編輯">✏️</button>
+          <button class="icon-btn del" onclick="deleteCat('${cat.id}')" title="刪除">🗑</button>
+        </div>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ══════════════════════════════
+// FL 法規追蹤
+// ══════════════════════════════
+
+function flUrl(code) {
+  return `https://oaout.moenv.gov.tw/law/LawContent.aspx?id=${code}`;
+}
+
+// 輸入 FL 代號時即時更新連結
+function onFlCodeInput() {
+  const code = document.getElementById('fFlCode').value.trim();
+  const linkEl = document.getElementById('fFlLink');
+  if (code && /^FL\d+$/i.test(code)) {
+    linkEl.href = flUrl(code.toUpperCase());
+    linkEl.style.display = 'inline-flex';
+  } else {
+    linkEl.style.display = 'none';
+  }
+}
+
+// 檢查單一法規
+async function checkOneLaw(lawId) {
+  const law = DB.laws.find(l => l.id === lawId);
+  if (!law?.flCode) return;
+  const btn = document.getElementById(`chkbtn-${lawId}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  law.updateStatus = { checking: true };
+  renderTable();
+
+  const result = await fetchFlStatus(law.flCode, law.lastAmended);
+  law.updateStatus = { ...result, checkedAt: new Date().toLocaleString('zh-TW') };
+  saveDB();
+  renderTable();
+
+  if (result.result === 'outdated') {
+    showToast('🔴', `「${law.title}」有新版本！政府最新：${result.govDate}`, true);
+  } else if (result.result === 'up-to-date') {
+    showToast('✅', `「${law.title}」已是最新版本`);
+  } else if (result.result === 'cors-blocked') {
+    showToast('⚡', `CORS 限制，已開啟官方頁面，請手動確認`);
+    window.open(flUrl(law.flCode), '_blank');
+  }
+}
+
+// 全部檢查
+async function checkAllLaws() {
+  const toCheck = DB.laws.filter(l => l.flCode);
+  if (!toCheck.length) {
+    showToast('⚠️', '沒有法規填有 FL 代號，請先在編輯頁面填入', true);
+    return;
+  }
+  const btn = document.getElementById('checkAllBtn');
+  btn.disabled = true;
+  btn.textContent = `⏳ 檢查中 (0/${toCheck.length})`;
+
+  let outdated = 0;
+  for (let i = 0; i < toCheck.length; i++) {
+    const law = toCheck[i];
+    btn.textContent = `⏳ 檢查中 (${i+1}/${toCheck.length})`;
+    law.updateStatus = { checking: true };
+    renderTable();
+
+    const result = await fetchFlStatus(law.flCode, law.lastAmended);
+    law.updateStatus = { ...result, checkedAt: new Date().toLocaleString('zh-TW') };
+    if (result.result === 'outdated') outdated++;
+
+    // 避免太快請求被擋
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  saveDB();
+  renderTable();
+  btn.disabled = false;
+  btn.textContent = '🔄 全部檢查更新';
+
+  if (outdated > 0) {
+    showToast('🔴', `檢查完成：${outdated} 部法規有新版本！`, true);
+  } else {
+    showToast('✅', `全部 ${toCheck.length} 部法規均為最新版本`);
+  }
+}
+
+// 核心：fetch 環境部法規頁面，比對修正日期
+async function fetchFlStatus(flCode, storedDate) {
+  const url = flUrl(flCode);
+  try {
+    const res = await fetch(url, {
+      mode: 'cors',
+      signal: AbortSignal.timeout(8000),
+    });
+    const html = await res.text();
+
+    // 嘗試從 HTML 抓修正日期
+    // 環境部頁面通常有「中華民國 XXX 年 XX 月 XX 日」或民國格式
+    const datePatterns = [
+      /最新異動日期[^：]*：\s*(\d{4}-\d{2}-\d{2})/,
+      /修正日期[^：]*：([^<]{6,20})/,
+      /(\d{3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/,
+    ];
+
+    let govDate = '';
+    for (const re of datePatterns) {
+      const m = html.match(re);
+      if (m) {
+        // 轉換民國年
+        if (m[1] && m[2] && m[3]) {
+          const y = parseInt(m[1]) + 1911;
+          govDate = `${m[1]}年${m[2]}月${m[3]}日`;
+        } else {
+          govDate = (m[1] || '').trim();
+        }
+        if (govDate) break;
+      }
+    }
+
+    if (!govDate) {
+      // 抓到頁面但無法解析日期 → 標記需手動確認
+      return { result: 'cors-blocked', msg: '頁面已取得但無法解析日期' };
+    }
+
+    // 比較日期（民國年格式，直接字串比較）
+    const isOutdated = storedDate && govDate && govDate !== storedDate;
+    return {
+      result: isOutdated ? 'outdated' : 'up-to-date',
+      govDate,
+    };
+
+  } catch (e) {
+    if (e.name === 'TypeError' || e.message?.includes('CORS') || e.message?.includes('Failed to fetch')) {
+      // CORS 被擋 → 開啟官方頁面
+      return { result: 'cors-blocked', msg: 'CORS 限制' };
+    }
+    if (e.name === 'TimeoutError') {
+      return { result: 'error', msg: '請求逾時' };
+    }
+    return { result: 'error', msg: e.message };
+  }
+}
+
+// 自動帶入已知 FL 代號（依 category id 對照）
+function autoFillFlCode(law) {
+  if (!law.flCode && FL_KNOWN[law.category]) {
+    return FL_KNOWN[law.category];
+  }
+  return law.flCode || '';
+}
+
+// ══════════════════════════════
+// ══════════════════════════════
+function renderDashboard() {
+  const laws = DB.laws, cats = DB.categories;
+  let totalArts=0, totalChs=0, totalFiles=0, latestDate='', latestName='';
+  laws.forEach(l => {
+    (l.chapters||[]).forEach(ch => { totalChs++; totalArts += ch.articles?.length||0; });
+    totalFiles += l.attachments?.length||0;
+    if (l.lastAmended && l.lastAmended > latestDate) { latestDate=l.lastAmended; latestName=l.title; }
+  });
+  document.getElementById('dashLaws').textContent    = laws.length;
+  document.getElementById('dashLawsSub').textContent = `${cats.length} 個類別`;
+  document.getElementById('dashArts').textContent    = totalArts;
+  document.getElementById('dashArtsSub').textContent = `${totalChs} 個章節`;
+  document.getElementById('dashFiles').textContent   = totalFiles;
+  document.getElementById('dashDate').textContent    = latestDate||'—';
+  document.getElementById('dashDateSub').textContent = latestName ? latestName.slice(0,10)+'…' : '尚無資料';
+}
+
+// ══════════════════════════════
+// 時間軸編輯
+// ══════════════════════════════
+let tlItemCount = 0;
+
+function initTlEditor(history) {
+  tlItemCount = 0;
+  document.getElementById('tlEditorList').innerHTML = '';
+  (history||[]).forEach(item => addTlItem(item.date, item.desc));
+}
+
+function addTlItem(date='', desc='') {
+  tlItemCount++;
+  const idx = tlItemCount;
+  const div = document.createElement('div');
+  div.className = 'tl-editor-item';
+  div.id = `tl-item-${idx}`;
+  div.innerHTML = `
+    <input type="text" class="form-input" style="flex:0 0 130px;"
+      placeholder="112年5月10日" value="${esc(date)}" id="tl-date-${idx}" />
+    <textarea class="form-textarea" style="flex:1;min-height:54px;font-size:13px;"
+      placeholder="修正說明（例：新增第16-1條…）" id="tl-desc-${idx}">${esc(desc)}</textarea>
+    <button class="remove-btn" onclick="document.getElementById('tl-item-${idx}').remove()">✕</button>`;
+  document.getElementById('tlEditorList').appendChild(div);
+}
+
+function collectTlItems() {
+  const items = [];
+  document.querySelectorAll('[id^="tl-item-"]').forEach(el => {
+    const idx  = el.id.replace('tl-item-','');
+    const date = document.getElementById(`tl-date-${idx}`)?.value.trim();
+    const desc = document.getElementById(`tl-desc-${idx}`)?.value.trim();
+    if (date) items.push({ date, desc: desc||'修正' });
+  });
+  return items.sort((a,b) => b.date.localeCompare(a.date));
+}
+
+// ══════════════════════════════
+// Storage / Export
+// ══════════════════════════════
+function saveDB() {
+  try {
+    const json = JSON.stringify(DB);
+    localStorage.setItem('eia-db', json);
+    return true;
+  } catch(e) {
+    // localStorage 滿了或被封鎖
+    showToast('❌', '儲存失敗：瀏覽器空間不足，請先下載 laws.json 備份再清理附件', true);
+    // 自動彈出下載備份
+    setTimeout(() => {
+      if (confirm('localStorage 空間不足，是否立即下載 laws.json 備份？')) downloadJSON();
+    }, 500);
+    return false;
+  }
+}
+
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(DB,null,2)], {type:'application/json'});
+  Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob), download:'laws.json'
+  }).click();
+  showToast('⬇️','已下載 laws.json');
+}
+function toggleImport() {
+  const el = document.getElementById('importArea');
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+function importJSON() {
+  try {
+    const p = JSON.parse(document.getElementById('importText').value.trim());
+    if (!p.categories||!p.laws) throw 0;
+    DB = p; saveDB(); populateCatSelect(); renderTable();
+    document.getElementById('importText').value = '';
+    document.getElementById('importArea').style.display = 'none';
+    showToast('✅','匯入成功');
+  } catch(_) { showToast('⚠️','JSON 格式錯誤，請重新確認',true); }
+}
+
+// ── Toast ──
+function showToast(icon, msg, isError=false) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastIcon').textContent = icon;
+  document.getElementById('toastMsg').textContent  = msg;
+  t.style.borderColor = isError ? 'var(--m-red)' : 'var(--m-blue)';
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), isError ? 6000 : 3000);
+}
+
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>
