@@ -209,7 +209,13 @@
             }
           ]
         }
-      ]
+      ],
+      "flCode": "FL016236",
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:46:58"
+      }
     },
     {
       "id": 1777559762509,
@@ -446,7 +452,13 @@
             }
           ]
         }
-      ]
+      ],
+      "flCode": "FL016237",
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:46:59"
+      }
     },
     {
       "id": 1777560887864,
@@ -735,7 +747,13 @@
           "size": 536286,
           "dataKey": "eia-file-1777560887864-1777859074136.485"
         }
-      ]
+      ],
+      "flCode": "FL016238",
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:47:01"
+      }
     },
     {
       "id": 1777634909497,
@@ -973,7 +991,13 @@
           ]
         }
       ],
-      "attachments": []
+      "attachments": [],
+      "flCode": "FL016247",
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:47:02"
+      }
     },
     {
       "id": 1777636015265,
@@ -983,6 +1007,7 @@
       "lawNumber": "環署空字第0990006225D號令",
       "lastAmended": "民國 99 年 01 月 21 日",
       "authority": "環境部",
+      "flCode": "FL015482",
       "status": "現行",
       "chapters": [
         {
@@ -1015,7 +1040,13 @@
           ]
         }
       ],
-      "attachments": []
+      "attachments": [],
+      "history": [],
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:47:03"
+      }
     },
     {
       "id": 1777636101402,
@@ -1025,6 +1056,7 @@
       "lawNumber": "環部空字第1131062467號令",
       "lastAmended": "民國 113 年 09 月 30 日",
       "authority": "環境部",
+      "flCode": "FL015351",
       "status": "現行",
       "chapters": [
         {
@@ -1057,7 +1089,13 @@
           ]
         }
       ],
-      "attachments": []
+      "attachments": [],
+      "history": [],
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:47:04"
+      }
     },
     {
       "id": 1778565005100,
@@ -1067,6 +1105,7 @@
       "lawNumber": "環署空字第1090057114A號令",
       "lastAmended": "民國 109 年 08 月 05 日",
       "authority": "環境部",
+      "flCode": "FL050253",
       "status": "現行",
       "chapters": [
         {
@@ -1128,7 +1167,12 @@
         }
       ],
       "attachments": [],
-      "history": []
+      "history": [],
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:47:05"
+      }
     },
     {
       "id": 1778565440626,
@@ -1138,6 +1182,7 @@
       "lawNumber": "環署空字第1020065143號令",
       "lastAmended": "民國 102 年 08 月 05 日",
       "authority": "環境部",
+      "flCode": "FL015476",
       "status": "現行",
       "chapters": [
         {
@@ -1191,7 +1236,12 @@
         }
       ],
       "attachments": [],
-      "history": []
+      "history": [],
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:47:06"
+      }
     },
     {
       "id": 1778565765883,
@@ -1201,6 +1251,7 @@
       "lawNumber": "環部水字第1131081975號令",
       "lastAmended": "民國 113 年 12 月 18 日",
       "authority": "環境部",
+      "flCode": "FL015489",
       "status": "現行",
       "chapters": [
         {
@@ -1250,7 +1301,12 @@
         }
       ],
       "attachments": [],
-      "history": []
+      "history": [],
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:47:08"
+      }
     },
     {
       "id": 1778565842887,
@@ -1260,6 +1316,7 @@
       "lawNumber": "經水字第10504605070號",
       "lastAmended": "民國 105 年 10 月 17 日",
       "authority": "經濟部水利署",
+      "flCode": "HTTPS://LAW.MOEA.GOV.TW/LAWCONTENT.ASPX?ID=FL082348",
       "status": "現行",
       "chapters": [
         {
@@ -1289,7 +1346,12 @@
         }
       ],
       "attachments": [],
-      "history": []
+      "history": [],
+      "updateStatus": {
+        "result": "cors-blocked",
+        "msg": "CORS 限制",
+        "checkedAt": "2026/5/12 下午2:47:09"
+      }
     }
   ]
 }
