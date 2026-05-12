@@ -162,10 +162,25 @@
     .td-actions { white-space:nowrap; }
     .no-data-row td { text-align:center; padding:40px; color:var(--m-grey); }
 
-    @media (max-width:700px) {
-      .meta-grid   { grid-template-columns:1fr; }
-      .meta-grid-2 { grid-template-columns:1fr; }
-      .step-line   { display:none; }
+    .parse-mode-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      background: var(--m-surface);
+      border: 1px solid var(--m-border);
+      border-radius: 20px;
+      font-family: var(--font-display);
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+      color: var(--m-grey-lt);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .parse-mode-btn input[type="radio"] { display: none; }
+    .parse-mode-btn:hover { border-color: var(--m-blue); color: var(--m-white); }
+    .parse-mode-btn.active {
+      background: rgba(28,105,212,0.15);
+      border-color: var(--m-blue);
+      color: var(--m-blue-lt);
     }
 
     /* ── Category Manager ── */
@@ -416,11 +431,25 @@
     <div class="form-card-body">
 
       <div class="parse-hint">
-        💡 直接將整部法律的文字複製後貼入，系統自動識別：<br>
-        &nbsp;&nbsp;• <code>第一章 總則</code>、<code>第二章 評估</code> → 章標題<br>
-        &nbsp;&nbsp;• <code>第 1 條</code>、<code>第一條</code> → 條文號碼<br>
-        &nbsp;&nbsp;• 其後所有文字 → 條文內容（多行自動合併）<br>
-        &nbsp;&nbsp;• 若法規無章節，所有條文自動歸入「本文」
+        💡 直接將整部法律 / 規範的文字複製後貼入，選擇對應格式後按「自動解析」：<br>
+        &nbsp;&nbsp;• <code>第一章 總則</code>、<code>第二章 評估</code> → 自動識別為章標題（所有模式通用）<br>
+        &nbsp;&nbsp;• <strong>法律條文</strong>：以「第 1 條」、「第一條」為條文分界<br>
+        &nbsp;&nbsp;• <strong>條列式規範</strong>：以「一、」「二、」「（一）」等中文編號為項目分界<br>
+        &nbsp;&nbsp;• <strong>段落式</strong>：以空白行區隔，每段為一個項目（適合無特定編號的規範）
+      </div>
+
+      <!-- 解析模式選擇 -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;" id="parseModeRow">
+        <span style="font-family:var(--font-display);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--m-grey);align-self:center;">解析模式：</span>
+        <label class="parse-mode-btn active" id="pm-article">
+          <input type="radio" name="parseMode" value="article" checked> ⚖️ 法律條文（第X條）
+        </label>
+        <label class="parse-mode-btn" id="pm-list">
+          <input type="radio" name="parseMode" value="list"> 📋 條列式規範（一、二、）
+        </label>
+        <label class="parse-mode-btn" id="pm-para">
+          <input type="radio" name="parseMode" value="para"> 📝 段落式（空行分段）
+        </label>
       </div>
 
       <div class="paste-zone">
@@ -875,70 +904,201 @@ function setStep(n) {
   });
 }
 
-// ── Parse ──
-function parseContent() {
-  const raw = document.getElementById('pasteArea').value.trim();
-  if (!raw) { showToast('⚠️','請先貼入法條內容',true); return; }
-
-  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章\s*.{0,50}$/;
-  const reArticle = /^第\s*([零一二三四五六七八九十百千\d]+(?:[-之]\d+)?)\s*條/;
-
-  const lines = raw.split(/\r?\n/);
-  const chapters = [];
-  let curChapter = null, curArticle = null;
-
-  function flushArt() {
-    if (curArticle && curChapter) {
-      curArticle.content = curArticle.content.join('\n').trim();
-      curChapter.articles.push(curArticle);
-      curArticle = null;
-    }
-  }
-  function flushCh() {
-    flushArt();
-    if (curChapter) { chapters.push(curChapter); curChapter = null; }
-  }
-  function ensureCh() {
-    if (!curChapter) curChapter = { title:'本文', articles:[] };
-  }
-
-  let detectedTitle = '', titleIdx = -1;
-  for (let i = 0; i < Math.min(lines.length, 6); i++) {
-    const l = lines[i].trim();
-    if (l && !reChapter.test(l) && !reArticle.test(l) && l.length < 40) {
-      detectedTitle = l; titleIdx = i; break;
-    }
-  }
-
-  lines.forEach((rawLine, idx) => {
-    const line = rawLine.trim();
-    if (!line || idx === titleIdx) return;
-    if (reChapter.test(line)) { flushCh(); curChapter = { title: line, articles: [] }; return; }
-    if (reArticle.test(line)) {
-      flushArt(); ensureCh();
-      const m = line.match(/^(第\s*[^\s條]+\s*條)/);
-      curArticle = { number: m ? m[1].trim() : line, content: [] };
-      const rest = line.replace(/^第\s*[^\s條]+\s*條\s*/, '').trim();
-      if (rest) curArticle.content.push(rest);
-      return;
-    }
-    if (curArticle) curArticle.content.push(line);
-    else if (curChapter?.articles.length)
-      curChapter.articles[curChapter.articles.length - 1].content += '\n' + line;
+// ── 模式切換 UI ──
+function switchParseMode(mode) {
+  document.querySelectorAll('.parse-mode-btn').forEach(el => {
+    el.classList.toggle('active', el.querySelector('input').value === mode);
   });
-  flushCh();
+  // 更新 placeholder 說明
+  const placeholders = {
+    article: `在此貼入法律全文...\n\n範例（法律條文）：\n\n環境影響評估法\n\n第一章  總則\n\n第 1 條\n為預防及減輕開發行為對環境造成不良影響...\n\n第 2 條\n本法專用名詞定義如下：\n一、開發行為：...\n\n第二章  評估、審查及監督\n\n第 3 條\n各級政府及目的事業主管機關...`,
+    list:    `在此貼入規範／準則全文...\n\n範例（條列式規範）：\n\n開發行為環境影響評估作業準則\n\n第一章 總則\n\n一、為規範開發行為...\n\n二、本準則依環境影響評估法第...\n\n（一）第一類開發行為\n（二）第二類開發行為\n\n三、申請書件應包含：\n1. 開發計畫說明\n2. 環境現況描述`,
+    para:    `在此貼入純文字規範...\n\n範例（段落式，空一行即分段）：\n\n環境影響說明書審查規範\n\n本規範依據環境影響評估法第七條規定訂定，適用於第一類開發行為之環境影響評估審查作業。\n\n開發單位應於申請核准前，委託顧問公司進行環境影響評估，並依本規範格式撰寫環境影響說明書。\n\n環境影響說明書應詳實記載開發行為之目的、規模、位置及可能影響環境之內容。`,
+  };
+  document.getElementById('pasteArea').placeholder = placeholders[mode] || placeholders.article;
+}
+
+// 初始化綁定
+document.querySelectorAll('.parse-mode-btn input').forEach(radio => {
+  radio.addEventListener('change', () => switchParseMode(radio.value));
+});
+document.querySelectorAll('.parse-mode-btn').forEach(label => {
+  label.addEventListener('click', () => {
+    const radio = label.querySelector('input');
+    if (radio) { radio.checked = true; switchParseMode(radio.value); }
+  });
+});
+
+// ── Parse ──
+function getParseMode() {
+  const checked = document.querySelector('input[name="parseMode"]:checked');
+  return checked ? checked.value : 'article';
+}
+
+function parseContent() {
+  const raw  = document.getElementById('pasteArea').value.trim();
+  const mode = getParseMode();
+  if (!raw) { showToast('⚠️','請先貼入內容',true); return; }
+
+  let chapters = [];
+
+  if (mode === 'article') {
+    chapters = parseArticleMode(raw);
+  } else if (mode === 'list') {
+    chapters = parseListMode(raw);
+  } else {
+    chapters = parseParaMode(raw);
+  }
 
   if (!chapters.length || chapters.every(c => !c.articles.length)) {
-    showToast('⚠️','未能識別任何條文，請確認格式',true); return;
+    showToast('⚠️',`未識別到任何條目，請確認格式或切換「解析模式」`,true); return;
   }
 
   parsedChapters = chapters;
+
+  // 自動填入標題
+  const detectedTitle = detectTitle(raw);
   if (detectedTitle && !document.getElementById('fTitle').value)
     document.getElementById('fTitle').value = detectedTitle;
 
   renderPreview(chapters);
   show('cardPreview'); setStep(2);
   document.getElementById('cardPreview').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ── 標題偵測（共用）──
+function detectTitle(raw) {
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章/;
+  const reArticle = /^第\s*[零一二三四五六七八九十百千\d]+\s*條/;
+  const reChinese = /^[一二三四五六七八九十]+[、．.]/;
+  const lines = raw.split(/\r?\n/);
+  for (let i = 0; i < Math.min(lines.length, 6); i++) {
+    const l = lines[i].trim();
+    if (l && !reChapter.test(l) && !reArticle.test(l) && !reChinese.test(l) && l.length < 40)
+      return l;
+  }
+  return '';
+}
+
+// ════════════════════
+// 模式 A：法律條文（第X條）
+// ════════════════════
+function parseArticleMode(raw) {
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章\s*.{0,50}$/;
+  const reArticle = /^第\s*([零一二三四五六七八九十百千\d]+(?:[-之]\d+)?)\s*條/;
+  const titleLine  = detectTitle(raw);
+  const lines = raw.split(/\r?\n/);
+  const chapters = [];
+  let curChapter = null, curArticle = null;
+
+  const flushArt = () => {
+    if (curArticle && curChapter) {
+      curArticle.content = curArticle.content.join('\n').trim();
+      curChapter.articles.push(curArticle);
+      curArticle = null;
+    }
+  };
+  const flushCh = () => { flushArt(); if (curChapter) { chapters.push(curChapter); curChapter = null; } };
+  const ensureCh = () => { if (!curChapter) curChapter = { title:'本文', articles:[] }; };
+
+  lines.forEach(rawLine => {
+    const line = rawLine.trim();
+    if (!line || line === titleLine) return;
+    if (reChapter.test(line)) { flushCh(); curChapter = { title:line, articles:[] }; return; }
+    if (reArticle.test(line)) {
+      flushArt(); ensureCh();
+      const m = line.match(/^(第\s*[^\s條]+\s*條)/);
+      curArticle = { number: m ? m[1].trim() : line, content:[] };
+      const rest = line.replace(/^第\s*[^\s條]+\s*條\s*/,'').trim();
+      if (rest) curArticle.content.push(rest);
+      return;
+    }
+    if (curArticle) curArticle.content.push(line);
+    else if (curChapter?.articles.length)
+      curChapter.articles[curChapter.articles.length-1].content += '\n'+line;
+  });
+  flushCh();
+  return chapters;
+}
+
+// ════════════════════
+// 模式 B：條列式規範（一、二、（一）、1. 等）
+// ════════════════════
+function parseListMode(raw) {
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章\s*.{0,50}$/;
+  // 匹配：一、 二、 （一） (1) 1. 1、 第一項 等
+  const reItem = /^(?:([一二三四五六七八九十百千\d]+)[、．.]|（([一二三四五六七八九十\d]+)）|\(([一二三四五六七八九十\d]+)\)|第([一二三四五六七八九十百千\d]+)[項款])/;
+  const titleLine = detectTitle(raw);
+  const lines = raw.split(/\r?\n/);
+  const chapters = [];
+  let curChapter = null, curItem = null;
+
+  const flushItem = () => {
+    if (curItem && curChapter) {
+      curItem.content = curItem.content.join('\n').trim();
+      curChapter.articles.push(curItem);
+      curItem = null;
+    }
+  };
+  const flushCh = () => { flushItem(); if (curChapter) { chapters.push(curChapter); curChapter = null; } };
+  const ensureCh = () => { if (!curChapter) curChapter = { title:'本文', articles:[] }; };
+
+  lines.forEach(rawLine => {
+    const line = rawLine.trim();
+    if (!line || line === titleLine) return;
+    if (reChapter.test(line)) { flushCh(); curChapter = { title:line, articles:[] }; return; }
+
+    const m = reItem.exec(line);
+    if (m) {
+      flushItem(); ensureCh();
+      // 取得編號
+      const num = m[1] || m[2] || m[3] || m[4];
+      const prefix = m[0]; // 完整前綴如「一、」
+      curItem = {
+        number: prefix.trim(),
+        content: [line.slice(prefix.length).trim()].filter(Boolean)
+      };
+      return;
+    }
+
+    // 不匹配條列 → 附加到當前項目
+    if (curItem) curItem.content.push(line);
+    else { ensureCh(); curChapter.articles.push({ number:'—', content:[line] }); }
+  });
+  flushCh();
+  return chapters;
+}
+
+// ════════════════════
+// 模式 C：段落式（空行分段）
+// ════════════════════
+function parseParaMode(raw) {
+  const reChapter = /^第\s*[零一二三四五六七八九十百千]+\s*章\s*.{0,50}$/;
+  const titleLine  = detectTitle(raw);
+  // 以一個以上的空行切分段落
+  const blocks = raw.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  const chapters = [];
+  let curChapter = null;
+
+  const ensureCh = () => { if (!curChapter) { curChapter = { title:'本文', articles:[] }; } };
+
+  let idx = 0;
+  blocks.forEach(block => {
+    const firstLine = block.split('\n')[0].trim();
+    if (firstLine === titleLine) return; // 跳過標題行
+    if (reChapter.test(firstLine)) {
+      if (curChapter) chapters.push(curChapter);
+      curChapter = { title:firstLine, articles:[] };
+      // 章標題後若同一 block 有內容，保留
+      const rest = block.split('\n').slice(1).join('\n').trim();
+      if (rest) { ensureCh(); curChapter.articles.push({ number:`段落 ${++idx}`, content:rest }); }
+      return;
+    }
+    ensureCh();
+    curChapter.articles.push({ number:`段落 ${++idx}`, content:block });
+  });
+  if (curChapter) chapters.push(curChapter);
+  return chapters;
 }
 
 function renderPreview(chapters) {
