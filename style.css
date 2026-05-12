@@ -1650,3 +1650,55 @@ body {
   .layout { padding: 20px 16px; }
   .stats-bar { gap: 16px; }
 }
+
+/* ============================================
+   FL 法規追蹤
+   ============================================ */
+.fl-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 2px 7px; border-radius: 10px;
+  border: 1px solid var(--m-border); color: var(--m-grey);
+  white-space: nowrap;
+}
+.fl-badge.up-to-date { border-color:rgba(48,224,106,0.4); background:rgba(48,224,106,0.08); color:#30E06A; }
+.fl-badge.outdated   { border-color:rgba(255,32,64,0.4);  background:rgba(255,32,64,0.08);  color:var(--m-red-lt); animation: pulse-red 2s infinite; }
+.fl-badge.checking   { border-color:rgba(255,210,0,0.4);  background:rgba(255,210,0,0.08);  color:#FFD600; }
+@keyframes pulse-red {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,32,64,0); }
+  50%     { box-shadow: 0 0 0 4px rgba(255,32,64,0.2); }
+}
+.fl-check-btn {
+  background:var(--m-surface); border:1px solid var(--m-border);
+  border-radius:var(--radius); color:var(--m-grey);
+  padding:4px 8px; font-size:12px; cursor:pointer;
+  transition:all 0.15s; white-space:nowrap;
+}
+.fl-check-btn:hover { border-color:var(--m-blue); color:var(--m-blue-lt); }
+.fl-check-btn:disabled { opacity:0.5; cursor:wait; }
+.fl-input-row { display:flex; gap:8px; align-items:center; }
+.fl-input-row .form-input { flex:1; font-family:var(--font-mono); letter-spacing:1px; }
+.fl-link-btn {
+  background:var(--m-surface); border:1px solid var(--m-border);
+  border-radius:var(--radius); color:var(--m-grey-lt);
+  padding:8px 12px; font-size:12px; cursor:pointer;
+  transition:all 0.15s; white-space:nowrap; text-decoration:none;
+  display:inline-flex; align-items:center; gap:5px;
+}
+.fl-link-btn:hover { border-color:var(--m-blue); color:var(--m-blue-lt); }
+.check-all-btn {
+  background:rgba(28,105,212,0.1); border:1px solid var(--m-blue);
+  border-radius:var(--radius); color:var(--m-blue-lt);
+  padding:6px 14px; font-family:var(--font-display);
+  font-size:12px; font-weight:700; letter-spacing:1px;
+  cursor:pointer; transition:all 0.2s;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.check-all-btn:hover { background:rgba(28,105,212,0.2); }
+.check-all-btn:disabled { opacity:0.5; cursor:wait; }
+.update-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  background:rgba(255,32,64,0.1); border:1px solid rgba(255,32,64,0.4);
+  color:var(--m-red-lt); font-size:10px; font-family:var(--font-mono);
+  padding:2px 8px; border-radius:10px; margin-left:6px;
+}
