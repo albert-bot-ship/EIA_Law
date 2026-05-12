@@ -556,6 +556,23 @@
         </div>
       </div>
 
+      <!-- FL 法規代號 -->
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">🔗 FL 法規代號（環境部法規資料庫追蹤用）</label>
+        <div class="fl-input-row">
+          <input type="text" id="fFlCode" class="form-input"
+            placeholder="例：FL016236（可在 oaout.moenv.gov.tw 網址列找到）"
+            style="font-family:var(--font-mono);letter-spacing:1px;"
+            oninput="onFlCodeInput()" />
+          <a id="fFlLink" href="#" target="_blank" class="fl-link-btn" style="display:none;">
+            🔗 開啟官方頁面
+          </a>
+        </div>
+        <div style="font-size:11px;color:var(--m-grey);margin-top:5px;font-family:var(--font-mono);">
+          填入後可自動追蹤法規是否有新版本。格式：FL######
+        </div>
+      </div>
+
       <div class="form-group">
         <label class="form-label">法規摘要（選填，留空則自動取第一條）</label>
         <textarea id="fSummary" class="form-textarea" rows="2" placeholder="簡述立法目的或重點..."></textarea>
@@ -722,6 +739,7 @@
       <span class="form-card-title" style="font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">📋 已儲存的法規</span>
       <span id="lawCount" style="margin-left:auto;font-size:12px;color:var(--m-grey);font-family:var(--font-mono);">0 筆</span>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="check-all-btn" id="checkAllBtn" onclick="checkAllLaws()">🔄 全部檢查更新</button>
         <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="downloadJSON()">⬇️ 下載 laws.json</button>
         <button class="btn btn-secondary" style="padding:6px 14px;font-size:12px;" onclick="toggleImport()">📤 匯入 JSON</button>
       </div>
@@ -746,6 +764,7 @@
             <th style="text-align:center;">章節</th>
             <th style="text-align:center;">條文</th>
             <th style="text-align:center;">附件</th>
+            <th style="text-align:center;">更新狀態</th>
             <th style="text-align:center;">操作</th>
           </tr>
         </thead>
@@ -816,6 +835,14 @@ initTheme();
 // ── State ──
 let DB = { categories: [], laws: [] };
 let parsedChapters = [];
+
+// FL 法規代號對照表（環境部法規資料庫）
+const FL_KNOWN = {
+  'eia-main':        'FL016236',
+  'eia-enforcement': 'FL016237',
+  'pollution':       'FL016247',
+  'nature':          'FL016238',
+};
 let editingId      = null;
 let pendingAttachments = []; // [{id, name, type, size, dataKey, data}]
 
@@ -852,6 +879,15 @@ async function init() {
 
   // 格式正規化：補上所有類別缺少的 iconType / iconData 欄位
   normalizeCats();
+
+  // 自動補上已知 FL 代號（既有法規無代號時自動帶入）
+  let flUpdated = false;
+  DB.laws.forEach(law => {
+    if (!law.flCode && FL_KNOWN[law.category]) {
+      law.flCode = FL_KNOWN[law.category]; flUpdated = true;
+    }
+  });
+  if (flUpdated) saveDB();
 
   populateCatSelect();
   renderTable();
@@ -1311,6 +1347,7 @@ function saveLaw() {
     lawNumber:   document.getElementById('fLawNumber').value.trim(),
     lastAmended: document.getElementById('fLastAmended').value.trim(),
     authority:   document.getElementById('fAuthority').value.trim(),
+    flCode:      document.getElementById('fFlCode').value.trim().toUpperCase() || autoFillFlCode({category}),
     status:      document.getElementById('fStatus').value,
     chapters:    parsedChapters,
     attachments: attachmentsMeta,
@@ -1359,6 +1396,9 @@ function editLaw(id) {
   document.getElementById('fLastAmended').value  = law.lastAmended || '';
   document.getElementById('fAuthority').value    = law.authority || '';
   document.getElementById('fSummary').value      = law.summary || '';
+  const flCode = law.flCode || autoFillFlCode(law);
+  document.getElementById('fFlCode').value = flCode;
+  onFlCodeInput();
   document.getElementById('metaCardTitle').textContent = '✏️ 編輯法規資訊';
 
   loadExistingAttachments(law);
@@ -1386,7 +1426,7 @@ function renderTable() {
   document.getElementById('lawCount').textContent = DB.laws.length + ' 筆';
   renderDashboard();
   if (!DB.laws.length) {
-    tbody.innerHTML = `<tr class="no-data-row"><td colspan="7">尚無法規資料，請使用上方表單新增</td></tr>`;
+    tbody.innerHTML = `<tr class="no-data-row"><td colspan="8">尚無法規資料，請使用上方表單新增</td></tr>`;
     return;
   }
   tbody.innerHTML = '';
@@ -1395,16 +1435,47 @@ function renderTable() {
     const chCount  = law.chapters?.length || 0;
     const artCount = law.chapters?.reduce((s,c) => s + (c.articles?.length||0), 0) || 0;
     const attCount = law.attachments?.length || 0;
+    const flCode   = law.flCode || '';
+    const status   = law.updateStatus || {};
+
+    // 更新狀態 badge
+    let statusHtml = '';
+    if (!flCode) {
+      statusHtml = `<span class="fl-badge no-code">無代號</span>`;
+    } else if (status.checking) {
+      statusHtml = `<span class="fl-badge checking">⏳ 檢查中</span>`;
+    } else if (status.result === 'up-to-date') {
+      statusHtml = `<span class="fl-badge up-to-date" title="檢查於 ${status.checkedAt||''}">✓ 最新</span>`;
+    } else if (status.result === 'outdated') {
+      statusHtml = `<span class="fl-badge outdated" title="政府最新：${status.govDate||''}">⚠ 有更新</span>`;
+    } else if (status.result === 'cors-blocked') {
+      statusHtml = `<span class="fl-badge checking" title="CORS 限制，請手動確認">⚡ 需手動</span>`;
+    } else if (status.result === 'error') {
+      statusHtml = `<span class="fl-badge no-code" title="${status.msg||''}">✕ 錯誤</span>`;
+    } else {
+      statusHtml = `<span class="fl-badge" title="點擊檢查更新">— 未檢查</span>`;
+    }
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="td-title">${esc(law.title)}</td>
-      <td class="td-cat">${cat ? cat.icon+' '+cat.name : law.category}</td>
+      <td class="td-title">
+        ${esc(law.title)}
+        ${status.result==='outdated' ? `<span class="update-badge">🔴 有新版本</span>` : ''}
+      </td>
+      <td class="td-cat">${cat ? (cat.iconType==='image'?'🖼':cat.icon||cat.iconData||'')+' '+cat.name : law.category}</td>
       <td class="td-date">${law.lastAmended||'—'}</td>
       <td class="td-count">${chCount}</td>
       <td class="td-count">${artCount}</td>
       <td class="td-count">${attCount ? '📎 '+attCount : '—'}</td>
+      <td class="td-count" style="min-width:100px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          ${statusHtml}
+          ${flCode ? `<button class="fl-check-btn" id="chkbtn-${law.id}" onclick="checkOneLaw(${law.id})" title="${flCode}">🔄 檢查</button>` : ''}
+        </div>
+      </td>
       <td class="td-actions">
         <div class="law-list-actions" style="justify-content:center;">
+          ${flCode ? `<a href="https://oaout.moenv.gov.tw/law/LawContent.aspx?id=${flCode}" target="_blank" class="icon-btn" title="開啟官方頁面">🔗</a>` : ''}
           <button class="icon-btn" onclick="editLaw(${law.id})" title="編輯">✏️</button>
           <button class="icon-btn del" onclick="deleteLaw(${law.id})" title="刪除">🗑</button>
         </div>
@@ -1423,7 +1494,7 @@ function resetAll() {
   parsedChapters = []; editingId = null;
   pendingAttachments = []; renderAttachList();
   initTlEditor([]);
-  ['fTitle','fLawNumber','fLastAmended','fAuthority','fSummary'].forEach(id =>
+  ['fTitle','fLawNumber','fLastAmended','fAuthority','fSummary','fFlCode'].forEach(id =>
     document.getElementById(id).value = '');
   document.getElementById('fCategory').value = '';
   document.getElementById('fStatus').value   = '現行';
@@ -1743,7 +1814,154 @@ function renderCatTable() {
 }
 
 // ══════════════════════════════
-// 統計儀表板
+// FL 法規追蹤
+// ══════════════════════════════
+
+function flUrl(code) {
+  return `https://oaout.moenv.gov.tw/law/LawContent.aspx?id=${code}`;
+}
+
+// 輸入 FL 代號時即時更新連結
+function onFlCodeInput() {
+  const code = document.getElementById('fFlCode').value.trim();
+  const linkEl = document.getElementById('fFlLink');
+  if (code && /^FL\d+$/i.test(code)) {
+    linkEl.href = flUrl(code.toUpperCase());
+    linkEl.style.display = 'inline-flex';
+  } else {
+    linkEl.style.display = 'none';
+  }
+}
+
+// 檢查單一法規
+async function checkOneLaw(lawId) {
+  const law = DB.laws.find(l => l.id === lawId);
+  if (!law?.flCode) return;
+  const btn = document.getElementById(`chkbtn-${lawId}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+  law.updateStatus = { checking: true };
+  renderTable();
+
+  const result = await fetchFlStatus(law.flCode, law.lastAmended);
+  law.updateStatus = { ...result, checkedAt: new Date().toLocaleString('zh-TW') };
+  saveDB();
+  renderTable();
+
+  if (result.result === 'outdated') {
+    showToast('🔴', `「${law.title}」有新版本！政府最新：${result.govDate}`, true);
+  } else if (result.result === 'up-to-date') {
+    showToast('✅', `「${law.title}」已是最新版本`);
+  } else if (result.result === 'cors-blocked') {
+    showToast('⚡', `CORS 限制，已開啟官方頁面，請手動確認`);
+    window.open(flUrl(law.flCode), '_blank');
+  }
+}
+
+// 全部檢查
+async function checkAllLaws() {
+  const toCheck = DB.laws.filter(l => l.flCode);
+  if (!toCheck.length) {
+    showToast('⚠️', '沒有法規填有 FL 代號，請先在編輯頁面填入', true);
+    return;
+  }
+  const btn = document.getElementById('checkAllBtn');
+  btn.disabled = true;
+  btn.textContent = `⏳ 檢查中 (0/${toCheck.length})`;
+
+  let outdated = 0;
+  for (let i = 0; i < toCheck.length; i++) {
+    const law = toCheck[i];
+    btn.textContent = `⏳ 檢查中 (${i+1}/${toCheck.length})`;
+    law.updateStatus = { checking: true };
+    renderTable();
+
+    const result = await fetchFlStatus(law.flCode, law.lastAmended);
+    law.updateStatus = { ...result, checkedAt: new Date().toLocaleString('zh-TW') };
+    if (result.result === 'outdated') outdated++;
+
+    // 避免太快請求被擋
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  saveDB();
+  renderTable();
+  btn.disabled = false;
+  btn.textContent = '🔄 全部檢查更新';
+
+  if (outdated > 0) {
+    showToast('🔴', `檢查完成：${outdated} 部法規有新版本！`, true);
+  } else {
+    showToast('✅', `全部 ${toCheck.length} 部法規均為最新版本`);
+  }
+}
+
+// 核心：fetch 環境部法規頁面，比對修正日期
+async function fetchFlStatus(flCode, storedDate) {
+  const url = flUrl(flCode);
+  try {
+    const res = await fetch(url, {
+      mode: 'cors',
+      signal: AbortSignal.timeout(8000),
+    });
+    const html = await res.text();
+
+    // 嘗試從 HTML 抓修正日期
+    // 環境部頁面通常有「中華民國 XXX 年 XX 月 XX 日」或民國格式
+    const datePatterns = [
+      /最新異動日期[^：]*：\s*(\d{4}-\d{2}-\d{2})/,
+      /修正日期[^：]*：([^<]{6,20})/,
+      /(\d{3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/,
+    ];
+
+    let govDate = '';
+    for (const re of datePatterns) {
+      const m = html.match(re);
+      if (m) {
+        // 轉換民國年
+        if (m[1] && m[2] && m[3]) {
+          const y = parseInt(m[1]) + 1911;
+          govDate = `${m[1]}年${m[2]}月${m[3]}日`;
+        } else {
+          govDate = (m[1] || '').trim();
+        }
+        if (govDate) break;
+      }
+    }
+
+    if (!govDate) {
+      // 抓到頁面但無法解析日期 → 標記需手動確認
+      return { result: 'cors-blocked', msg: '頁面已取得但無法解析日期' };
+    }
+
+    // 比較日期（民國年格式，直接字串比較）
+    const isOutdated = storedDate && govDate && govDate !== storedDate;
+    return {
+      result: isOutdated ? 'outdated' : 'up-to-date',
+      govDate,
+    };
+
+  } catch (e) {
+    if (e.name === 'TypeError' || e.message?.includes('CORS') || e.message?.includes('Failed to fetch')) {
+      // CORS 被擋 → 開啟官方頁面
+      return { result: 'cors-blocked', msg: 'CORS 限制' };
+    }
+    if (e.name === 'TimeoutError') {
+      return { result: 'error', msg: '請求逾時' };
+    }
+    return { result: 'error', msg: e.message };
+  }
+}
+
+// 自動帶入已知 FL 代號（依 category id 對照）
+function autoFillFlCode(law) {
+  if (!law.flCode && FL_KNOWN[law.category]) {
+    return FL_KNOWN[law.category];
+  }
+  return law.flCode || '';
+}
+
+// ══════════════════════════════
 // ══════════════════════════════
 function renderDashboard() {
   const laws = DB.laws, cats = DB.categories;
