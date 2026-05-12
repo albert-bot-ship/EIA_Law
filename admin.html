@@ -556,20 +556,20 @@
         </div>
       </div>
 
-      <!-- FL 法規代號 -->
+      <!-- 法規來源網址 -->
       <div class="form-group" style="margin-bottom:14px;">
-        <label class="form-label">🔗 FL 法規代號（環境部法規資料庫追蹤用）</label>
+        <label class="form-label">🔗 法規來源網址 / FL 代號（選填，用於追蹤更新）</label>
         <div class="fl-input-row">
           <input type="text" id="fFlCode" class="form-input"
-            placeholder="例：FL016236（可在 oaout.moenv.gov.tw 網址列找到）"
-            style="font-family:var(--font-mono);letter-spacing:1px;"
+            placeholder="貼入完整網址 或 FL代號（如 FL016236）"
             oninput="onFlCodeInput()" />
           <a id="fFlLink" href="#" target="_blank" class="fl-link-btn" style="display:none;">
-            🔗 開啟官方頁面
+            🔗 開啟
           </a>
         </div>
-        <div style="font-size:11px;color:var(--m-grey);margin-top:5px;font-family:var(--font-mono);">
-          填入後可自動追蹤法規是否有新版本。格式：FL######
+        <div style="font-size:11px;color:var(--m-grey);margin-top:5px;line-height:1.8;">
+          ・環境部：輸入 <code style="font-family:var(--font-mono);background:var(--m-surface);padding:1px 5px;border-radius:3px;">FL016236</code> 自動轉換連結<br>
+          ・其他機關：直接貼入完整網址（如 law.moj.gov.tw、內政部、農業部等）
         </div>
       </div>
 
@@ -1347,7 +1347,7 @@ function saveLaw() {
     lawNumber:   document.getElementById('fLawNumber').value.trim(),
     lastAmended: document.getElementById('fLastAmended').value.trim(),
     authority:   document.getElementById('fAuthority').value.trim(),
-    flCode:      document.getElementById('fFlCode').value.trim().toUpperCase() || autoFillFlCode({category}),
+    flCode: (val => /^FL/i.test(val) ? val.toUpperCase() : val)(document.getElementById('fFlCode').value.trim()) || autoFillFlCode({category}),
     status:      document.getElementById('fStatus').value,
     chapters:    parsedChapters,
     attachments: attachmentsMeta,
@@ -1475,7 +1475,7 @@ function renderTable() {
       </td>
       <td class="td-actions">
         <div class="law-list-actions" style="justify-content:center;">
-          ${flCode ? `<a href="https://oaout.moenv.gov.tw/law/LawContent.aspx?id=${flCode}" target="_blank" class="icon-btn" title="開啟官方頁面">🔗</a>` : ''}
+          ${flCode ? `<a href="${resolveFlUrl(flCode)||'#'}" target="_blank" class="icon-btn" title="開啟官方頁面：${flCode}">🔗</a>` : ''}
           <button class="icon-btn" onclick="editLaw(${law.id})" title="編輯">✏️</button>
           <button class="icon-btn del" onclick="deleteLaw(${law.id})" title="刪除">🗑</button>
         </div>
@@ -1817,17 +1817,34 @@ function renderCatTable() {
 // FL 法規追蹤
 // ══════════════════════════════
 
-function flUrl(code) {
-  return `https://oaout.moenv.gov.tw/law/LawContent.aspx?id=${code}`;
+// 解析輸入：FL代號 或 完整網址 → 統一回傳網址
+function resolveFlUrl(input) {
+  if (!input) return null;
+  input = input.trim();
+  // 完整網址
+  if (/^https?:\/\//i.test(input)) return input;
+  // FL 代號 → 環境部網址
+  if (/^FL\d+$/i.test(input)) return `https://oaout.moenv.gov.tw/law/LawContent.aspx?id=${input.toUpperCase()}`;
+  // 其他短代號也嘗試當 FL
+  if (/^FL/i.test(input)) return `https://oaout.moenv.gov.tw/law/LawContent.aspx?id=${input.toUpperCase()}`;
+  return null;
 }
 
-// 輸入 FL 代號時即時更新連結
+function flUrl(codeOrUrl) {
+  return resolveFlUrl(codeOrUrl) || '#';
+}
+
+// 輸入時即時更新連結
 function onFlCodeInput() {
-  const code = document.getElementById('fFlCode').value.trim();
+  const val    = document.getElementById('fFlCode').value.trim();
+  const url    = resolveFlUrl(val);
   const linkEl = document.getElementById('fFlLink');
-  if (code && /^FL\d+$/i.test(code)) {
-    linkEl.href = flUrl(code.toUpperCase());
+  if (url) {
+    linkEl.href = url;
     linkEl.style.display = 'inline-flex';
+    // 顯示來源類型提示
+    if (/^FL/i.test(val)) linkEl.title = '環境部法規資料庫';
+    else linkEl.title = url;
   } else {
     linkEl.style.display = 'none';
   }
@@ -1854,7 +1871,7 @@ async function checkOneLaw(lawId) {
     showToast('✅', `「${law.title}」已是最新版本`);
   } else if (result.result === 'cors-blocked') {
     showToast('⚡', `CORS 限制，已開啟官方頁面，請手動確認`);
-    window.open(flUrl(law.flCode), '_blank');
+    window.open(resolveFlUrl(law.flCode), '_blank');
   }
 }
 
@@ -1896,9 +1913,13 @@ async function checkAllLaws() {
   }
 }
 
-// 核心：fetch 環境部法規頁面，比對修正日期
-async function fetchFlStatus(flCode, storedDate) {
-  const url = flUrl(flCode);
+// 核心：fetch 法規頁面，比對修正日期
+async function fetchFlStatus(codeOrUrl, storedDate) {
+  const url = resolveFlUrl(codeOrUrl);
+  if (!url) return { result: 'error', msg: '無效的網址或代號' };
+
+  const isFlCode = /^FL\d+$/i.test(codeOrUrl); // 只有 FL 代號才能自動解析日期
+
   try {
     const res = await fetch(url, {
       mode: 'cors',
@@ -1906,8 +1927,12 @@ async function fetchFlStatus(flCode, storedDate) {
     });
     const html = await res.text();
 
-    // 嘗試從 HTML 抓修正日期
-    // 環境部頁面通常有「中華民國 XXX 年 XX 月 XX 日」或民國格式
+    if (!isFlCode) {
+      // 非環境部 FL 代號 → 頁面抓到了，但不強迫解析，標記需手動確認
+      return { result: 'cors-blocked', msg: '頁面已取得，請手動確認日期' };
+    }
+
+    // 嘗試從環境部頁面抓修正日期
     const datePatterns = [
       /最新異動日期[^：]*：\s*(\d{4}-\d{2}-\d{2})/,
       /修正日期[^：]*：([^<]{6,20})/,
@@ -1918,9 +1943,7 @@ async function fetchFlStatus(flCode, storedDate) {
     for (const re of datePatterns) {
       const m = html.match(re);
       if (m) {
-        // 轉換民國年
         if (m[1] && m[2] && m[3]) {
-          const y = parseInt(m[1]) + 1911;
           govDate = `${m[1]}年${m[2]}月${m[3]}日`;
         } else {
           govDate = (m[1] || '').trim();
@@ -1929,26 +1952,15 @@ async function fetchFlStatus(flCode, storedDate) {
       }
     }
 
-    if (!govDate) {
-      // 抓到頁面但無法解析日期 → 標記需手動確認
-      return { result: 'cors-blocked', msg: '頁面已取得但無法解析日期' };
-    }
+    if (!govDate) return { result: 'cors-blocked', msg: '頁面已取得但無法解析日期' };
 
-    // 比較日期（民國年格式，直接字串比較）
     const isOutdated = storedDate && govDate && govDate !== storedDate;
-    return {
-      result: isOutdated ? 'outdated' : 'up-to-date',
-      govDate,
-    };
+    return { result: isOutdated ? 'outdated' : 'up-to-date', govDate };
 
   } catch (e) {
-    if (e.name === 'TypeError' || e.message?.includes('CORS') || e.message?.includes('Failed to fetch')) {
-      // CORS 被擋 → 開啟官方頁面
-      return { result: 'cors-blocked', msg: 'CORS 限制' };
-    }
-    if (e.name === 'TimeoutError') {
-      return { result: 'error', msg: '請求逾時' };
-    }
+    const isCors = e.name === 'TypeError' || e.message?.includes('Failed to fetch');
+    if (isCors) return { result: 'cors-blocked', msg: 'CORS 限制' };
+    if (e.name === 'TimeoutError') return { result: 'error', msg: '請求逾時' };
     return { result: 'error', msg: e.message };
   }
 }
