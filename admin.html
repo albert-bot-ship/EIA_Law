@@ -807,15 +807,21 @@ function normalizeCats() {
 
 function populateCatSelect() {
   const sel = document.getElementById('fCategory');
-  sel.innerHTML = '<option value="">請選擇類別</option>';
+  if (!sel) return;
+
+  // 若 DB.categories 空了，緊急補回預設值
+  if (!DB.categories?.length) normalizeCats();
+
+  const prev = sel.value; // 保留目前選擇
+  sel.innerHTML = '<option value="">— 請選擇類別 —</option>';
   DB.categories.forEach(c => {
     const o = document.createElement('option');
     o.value = c.id;
-    // 下拉只能顯示文字，圖片類別就顯示名稱（無圖示前綴）
     const prefix = c.iconType === 'image' ? '🖼 ' : (c.icon || c.iconData || '');
     o.textContent = prefix + ' ' + c.name;
     sel.appendChild(o);
   });
+  if (prev) sel.value = prev; // 還原選擇
 }
 
 // ── Steps ──
@@ -915,7 +921,16 @@ function renderPreview(chapters) {
 }
 
 // ── Navigation ──
-function goToMeta()      { show('cardMeta');    setStep(3); scrollToCard('cardMeta'); }
+function goToMeta() {
+  // 每次進入步驟3都重新填充類別下拉，確保不會空白
+  populateCatSelect();
+  // 若有正在編輯的法規，保留原本選的類別
+  if (editingId) {
+    const law = DB.laws.find(l => l.id === editingId);
+    if (law) document.getElementById('fCategory').value = law.category;
+  }
+  show('cardMeta'); setStep(3); scrollToCard('cardMeta');
+}
 function backToPaste()   { show('cardPaste');   setStep(1); scrollToCard('cardPaste'); }
 function backToPreview() { show('cardPreview'); setStep(2); scrollToCard('cardPreview'); }
 function show(id) {
