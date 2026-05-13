@@ -258,11 +258,6 @@
     <nav class="header-nav">
       <a href="index.html" class="nav-link active">法規查詢</a>
 
-      <!-- Ctrl+K 快捷搜尋 -->
-      <button class="nav-link" onclick="openCmdk()" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-        🔍 <span style="font-family:var(--font-mono);font-size:10px;opacity:0.6;">Ctrl+K</span>
-      </button>
-
       <!-- 主題切換 -->
       <div style="position:relative;" id="themeWrap">
         <button class="theme-btn" onclick="toggleThemeMenu()" id="themeBtn">
@@ -393,6 +388,27 @@
     <!-- Chapter navigation pills -->
     <div class="chapter-nav" id="chapterNav"></div>
 
+    <!-- 工具列：螢光筆 + 字型大小 + 列印 -->
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--m-border);background:var(--m-surface);flex-wrap:wrap;">
+      <!-- 螢光筆 -->
+      <div class="hl-toolbar">
+        <span class="hl-toolbar-label">螢光筆</span>
+        <button class="hl-btn" style="background:#FFD600;" data-color="hl-yellow" onclick="setHlColor('hl-yellow',this)" title="黃色"></button>
+        <button class="hl-btn" style="background:#FF5050;" data-color="hl-red"    onclick="setHlColor('hl-red',this)"    title="紅色"></button>
+        <button class="hl-btn" style="background:#3D8EFF;" data-color="hl-blue"   onclick="setHlColor('hl-blue',this)"   title="藍色"></button>
+        <button class="hl-btn" style="background:#30E06A;" data-color="hl-green"  onclick="setHlColor('hl-green',this)"  title="綠色"></button>
+        <button class="hl-btn erase" onclick="setHlColor(null,this)" title="清除">✕ 清除</button>
+      </div>
+      <!-- 字型大小 -->
+      <div class="font-ctrl">
+        <button class="font-ctrl-btn" onclick="changeFontSize(-1)" title="縮小字型">A−</button>
+        <span class="font-size-label" id="fontSizeLabel">M</span>
+        <button class="font-ctrl-btn" onclick="changeFontSize(+1)" title="放大字型">A+</button>
+      </div>
+      <!-- 列印 -->
+      <button class="print-btn" onclick="printLaw()" style="margin-left:auto;">🖨 列印 / PDF</button>
+    </div>
+
     <!-- In-modal keyword search -->
     <div class="modal-search-bar" id="modalSearchBar">
       <input type="text" class="modal-search-input" id="modalSearchInput"
@@ -438,29 +454,6 @@
   <img    class="img-preview-frame"  id="previewImg"      style="display:none;" alt="預覽" />
 </div>
 
-<!-- ══ CTRL+K 全站快捷搜尋 ══ -->
-<div class="cmdk-backdrop" id="cmdkBackdrop" onclick="closeCmdk(event)">
-  <div class="cmdk-box">
-    <div class="cmdk-input-row">
-      <span class="cmdk-icon">🔍</span>
-      <input class="cmdk-input" id="cmdkInput"
-        placeholder="搜尋法規名稱、條文關鍵字..."
-        autocomplete="off"
-        oninput="onCmdkInput()"
-        onkeydown="onCmdkKey(event)" />
-      <span class="cmdk-kbd">ESC 關閉</span>
-    </div>
-    <div class="cmdk-results" id="cmdkResults">
-      <div class="cmdk-empty">輸入關鍵字開始搜尋</div>
-    </div>
-    <div class="cmdk-footer">
-      <span class="cmdk-footer-hint"><span class="cmdk-kbd">↑↓</span> 選擇</span>
-      <span class="cmdk-footer-hint"><span class="cmdk-kbd">Enter</span> 開啟</span>
-      <span class="cmdk-footer-hint"><span class="cmdk-kbd">Ctrl+K</span> 呼出</span>
-    </div>
-  </div>
-</div>
-
 <!-- ══ 行動版類別 Drawer ══ -->
 <button class="mobile-cat-btn" id="mobileCatBtn" onclick="openDrawer()">
   ☰ 法規類別
@@ -472,11 +465,14 @@
   <div class="drawer-list" id="drawerList"></div>
 </div>
 
+<!-- 列印用隱藏區域 -->
+<div id="printArea" style="display:none;"></div>
+
 <!-- ══ FOOTER ══ -->
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-logo">環評法律資料庫 // EIA Legal Database</div>
-    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with Albert</div>
+    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with M Power</div>
   </div>
 </footer>
 
@@ -959,7 +955,130 @@ document.addEventListener('click', e => {
 });
 
 // ══════════════════════════════
-// ATTACHMENTS (modal)
+// 螢光筆標記
+// ══════════════════════════════
+let currentHlColor = null; // null = erase mode
+
+const HL_COLORS = ['hl-yellow','hl-red','hl-blue','hl-green'];
+
+function setHlColor(color, btn) {
+  currentHlColor = color;
+  // 更新按鈕 active 狀態
+  document.querySelectorAll('.hl-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function getHlKey(lawId, artNum) {
+  return `eia-hl-${lawId}-${artNum.replace(/\s/g,'')}`;
+}
+function saveHl(lawId, artNum, color) {
+  const key = getHlKey(lawId, artNum);
+  try {
+    if (color) localStorage.setItem(key, color);
+    else        localStorage.removeItem(key);
+  } catch(_) {}
+}
+function loadHl(lawId, artNum) {
+  return localStorage.getItem(getHlKey(lawId, artNum)) || null;
+}
+
+// 套用螢光筆到 article block
+function applyHlToBlock(el, color) {
+  HL_COLORS.forEach(c => el.classList.remove(c));
+  if (color) el.classList.add(color);
+}
+
+// 開啟 Modal 後套用已儲存的螢光筆
+function applyAllHighlights(law) {
+  const body = document.getElementById('modalBody');
+  body.querySelectorAll('.article-block').forEach(el => {
+    const artNum = el.dataset.artNum || '';
+    const color  = loadHl(law.id, artNum);
+    applyHlToBlock(el, color);
+    // 點擊條文 → 套用/清除螢光筆
+    el.onclick = (e) => {
+      if (e.target.classList.contains('art-xref')) return; // 不干擾交叉引用
+      if (currentHlColor === undefined) return;
+      const newColor = el.classList.contains(currentHlColor) && currentHlColor
+        ? null  // 再點一次同色 → 清除
+        : currentHlColor;
+      applyHlToBlock(el, newColor);
+      saveHl(law.id, artNum, newColor);
+    };
+    el.style.cursor = 'pointer';
+    el.title = '點擊套用/清除螢光筆';
+  });
+}
+
+// ══════════════════════════════
+// 字型大小調整
+// ══════════════════════════════
+const FONT_SIZES = [12, 13, 14, 16, 18, 20];
+const FONT_LABELS = ['XS','S','M','L','XL','XXL'];
+let fontSizeIdx = parseInt(localStorage.getItem('eia-fontsize') || '2');
+
+function applyFontSize() {
+  const size = FONT_SIZES[fontSizeIdx];
+  document.getElementById('modalBody').style.setProperty('--art-font-size', size + 'px');
+  // 直接對所有條文套用
+  document.querySelectorAll('#modalBody .article-content').forEach(el => {
+    el.style.fontSize = size + 'px';
+  });
+  const label = document.getElementById('fontSizeLabel');
+  if (label) label.textContent = FONT_LABELS[fontSizeIdx];
+}
+
+function changeFontSize(delta) {
+  fontSizeIdx = Math.max(0, Math.min(FONT_SIZES.length - 1, fontSizeIdx + delta));
+  localStorage.setItem('eia-fontsize', fontSizeIdx);
+  applyFontSize();
+}
+
+// ══════════════════════════════
+// 列印 / 匯出 PDF
+// ══════════════════════════════
+function printLaw() {
+  if (!currentLaw) return;
+  const law = currentLaw;
+  const cat = DB.categories.find(c => c.id === law.category);
+
+  // 建立列印內容
+  let html = `
+    <div class="print-title">${esc(law.title)}</div>
+    <div class="print-meta">
+      ${law.lastAmended ? '最新修正：' + esc(law.lastAmended) + '　' : ''}
+      ${law.lawNumber   ? esc(law.lawNumber) + '　' : ''}
+      ${law.authority   ? '主管機關：' + esc(law.authority) : ''}
+      ${cat ? '　類別：' + esc(cat.name) : ''}
+      <br>列印時間：${new Date().toLocaleString('zh-TW')}
+    </div>`;
+
+  if (law.summary) {
+    html += `<div style="font-size:10pt;color:#555;margin-bottom:12pt;padding:6pt;border-left:3pt solid #ccc;">${esc(law.summary)}</div>`;
+  }
+
+  (law.chapters || []).forEach(ch => {
+    html += `<div class="print-chapter">${esc(ch.title)}</div>`;
+    (ch.articles || []).forEach(art => {
+      const hlClass = loadHl(law.id, art.number)
+        ?.replace('hl-','print-hl-') || '';
+      html += `
+        <div class="print-article ${hlClass}">
+          <div class="print-art-num">${esc(art.number)}</div>
+          <div class="print-art-content">${esc(art.content)}</div>
+        </div>`;
+    });
+  });
+
+  const printArea = document.getElementById('printArea');
+  printArea.style.display = 'block';
+  printArea.innerHTML = html;
+  window.print();
+  // 列印後清除
+  setTimeout(() => { printArea.style.display = 'none'; printArea.innerHTML = ''; }, 1000);
+}
+
+// ══════════════════════════════
 // ══════════════════════════════
 const FILE_ICONS = {
   pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊',
@@ -1110,6 +1229,16 @@ function openModal(law, highlightQ, jumpToArtNum) {
   // ── Render timeline ──
   renderTimeline(law);
 
+  // ── 螢光筆 & 字型大小 ──
+  requestAnimationFrame(() => {
+    applyAllHighlights(law);
+    applyFontSize();
+    currentHlColor = null;
+    document.querySelectorAll('.hl-btn').forEach(b => b.classList.remove('active'));
+    const label = document.getElementById('fontSizeLabel');
+    if (label) label.textContent = FONT_LABELS[fontSizeIdx];
+  });
+
   // ── Jump to specific article ──
   if (jumpToArtNum) {
     requestAnimationFrame(() => {
@@ -1187,6 +1316,8 @@ function modalSearch() {
   });
   body.innerHTML = html;
   body.onscroll = () => updateActivePill(currentLaw.chapters||[]);
+  applyAllHighlights(currentLaw);
+  applyFontSize();
 
   // Collect hits
   modalHits = Array.from(body.querySelectorAll('.article-block.highlighted'));
@@ -1250,16 +1381,7 @@ function closeModalDirect() {
   modalHits = []; modalHitIdx = -1;
 }
 document.addEventListener('keydown', e => {
-  // Ctrl+K → 開啟全站快捷搜尋
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-    e.preventDefault();
-    openCmdk();
-    return;
-  }
   if (e.key === 'Escape') {
-    if (document.getElementById('cmdkBackdrop').classList.contains('open')) {
-      closeCmdkDirect(); return;
-    }
     if (document.getElementById('previewBackdrop').classList.contains('open')) {
       closePreviewDirect(); return;
     }
@@ -1293,143 +1415,6 @@ function escNl(s) {
 // （已在 onSearchKey 內實作，無需額外程式）
 
 // ══════════════════════════════
-// FEATURE 2: Ctrl+K 全站快捷搜尋
-// ══════════════════════════════
-let cmdkFocusIdx = -1;
-let cmdkItems    = [];
-
-function openCmdk() {
-  document.getElementById('cmdkBackdrop').classList.add('open');
-  setTimeout(() => document.getElementById('cmdkInput').focus(), 50);
-  onCmdkInput();
-}
-function closeCmdk(e) {
-  if (!e || e.target === document.getElementById('cmdkBackdrop'))
-    document.getElementById('cmdkBackdrop').classList.remove('open');
-}
-function closeCmdkDirect() {
-  document.getElementById('cmdkBackdrop').classList.remove('open');
-}
-
-function onCmdkInput() {
-  const q = document.getElementById('cmdkInput').value.trim().toLowerCase();
-  const res = document.getElementById('cmdkResults');
-  cmdkItems = []; cmdkFocusIdx = -1;
-
-  if (!q) {
-    // Show all laws when empty
-    const all = DB.laws.slice(0, 12);
-    if (!all.length) { res.innerHTML = '<div class="cmdk-empty">尚無法規資料</div>'; return; }
-    let html = `<div class="cmdk-section-title">全部法規（${DB.laws.length} 筆）</div>`;
-    all.forEach((law, i) => {
-      const cat = DB.categories.find(c => c.id === law.category);
-      const iconHtml = cat?.iconType === 'image'
-        ? `<img src="${cat.iconData}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;">`
-        : (cat?.icon || cat?.iconData || '📄');
-      html += `<div class="cmdk-item" data-idx="${i}" onclick="cmdkOpen(${law.id})">
-        <span class="cmdk-item-icon">${iconHtml}</span>
-        <div class="cmdk-item-info">
-          <div class="cmdk-item-title">${esc(law.title)}</div>
-          <div class="cmdk-item-sub">${esc(cat?.name||'')} · ${law.lastAmended||'—'}</div>
-        </div>
-        <span class="cmdk-item-arrow">›</span>
-      </div>`;
-      cmdkItems.push(law.id);
-    });
-    res.innerHTML = html;
-    return;
-  }
-
-  // Search laws + articles
-  const hits = [];
-  DB.laws.forEach(law => {
-    const cat = DB.categories.find(c => c.id === law.category);
-    const iconHtml = cat?.iconType === 'image'
-      ? `<img src="${cat.iconData}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;">`
-      : (cat?.icon || cat?.iconData || '📄');
-
-    if (law.title.toLowerCase().includes(q)) {
-      hits.push({ type:'law', law, cat, iconHtml });
-    }
-    (law.chapters||[]).forEach(ch => {
-      (ch.articles||[]).forEach(art => {
-        if ((art.content||'').toLowerCase().includes(q) || (art.number||'').toLowerCase().includes(q)) {
-          hits.push({ type:'art', law, cat, iconHtml, art, ch });
-        }
-      });
-    });
-  });
-
-  if (!hits.length) { res.innerHTML = `<div class="cmdk-empty">找不到「${esc(q)}」相關結果</div>`; return; }
-
-  const lawHits = hits.filter(h => h.type === 'law').slice(0, 4);
-  const artHits = hits.filter(h => h.type === 'art').slice(0, 8);
-  let html = '';
-
-  if (lawHits.length) {
-    html += `<div class="cmdk-section-title">法規（${lawHits.length}）</div>`;
-    lawHits.forEach(h => {
-      const idx = cmdkItems.length;
-      html += `<div class="cmdk-item" data-idx="${idx}" onclick="cmdkOpen(${h.law.id})">
-        <span class="cmdk-item-icon">${h.iconHtml}</span>
-        <div class="cmdk-item-info">
-          <div class="cmdk-item-title">${highlightKeyword(esc(h.law.title), q)}</div>
-          <div class="cmdk-item-sub">${esc(h.cat?.name||'')} · ${h.law.lastAmended||'—'}</div>
-        </div><span class="cmdk-item-arrow">›</span></div>`;
-      cmdkItems.push({ lawId: h.law.id });
-    });
-  }
-  if (artHits.length) {
-    html += `<div class="cmdk-section-title">條文（${artHits.length} 筆符合）</div>`;
-    artHits.forEach(h => {
-      const idx = cmdkItems.length;
-      const snippet = makeSnippet(h.art.content, q, 60);
-      html += `<div class="cmdk-item" data-idx="${idx}" onclick="cmdkOpenArt(${h.law.id},'${esc(h.art.number)}')">
-        <span class="cmdk-item-icon">${h.iconHtml}</span>
-        <div class="cmdk-item-info">
-          <div class="cmdk-item-title">${esc(h.law.title)} · <span style="color:var(--m-blue-lt)">${esc(h.art.number)}</span></div>
-          <div class="cmdk-item-sub">${snippet}</div>
-        </div><span class="cmdk-item-arrow">›</span></div>`;
-      cmdkItems.push({ lawId: h.law.id, artNum: h.art.number });
-    });
-  }
-  res.innerHTML = html;
-}
-
-function onCmdkKey(e) {
-  const items = document.querySelectorAll('.cmdk-item');
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    cmdkFocusIdx = Math.min(cmdkFocusIdx + 1, items.length - 1);
-    items.forEach((el,i) => el.classList.toggle('focused', i === cmdkFocusIdx));
-    items[cmdkFocusIdx]?.scrollIntoView({ block:'nearest' });
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    cmdkFocusIdx = Math.max(cmdkFocusIdx - 1, 0);
-    items.forEach((el,i) => el.classList.toggle('focused', i === cmdkFocusIdx));
-    items[cmdkFocusIdx]?.scrollIntoView({ block:'nearest' });
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    if (cmdkFocusIdx >= 0) items[cmdkFocusIdx]?.click();
-    else if (items.length) items[0].click();
-  } else if (e.key === 'Escape') {
-    closeCmdkDirect();
-  }
-}
-
-function cmdkOpen(lawId) {
-  const law = DB.laws.find(l => l.id === lawId);
-  if (!law) return;
-  closeCmdkDirect();
-  openModal(law, document.getElementById('cmdkInput').value.trim());
-}
-function cmdkOpenArt(lawId, artNum) {
-  const law = DB.laws.find(l => l.id === lawId);
-  if (!law) return;
-  closeCmdkDirect();
-  openModal(law, document.getElementById('cmdkInput').value.trim(), artNum);
-}
-
 // ══════════════════════════════
 // FEATURE 3: 行動版 Drawer
 // ══════════════════════════════
