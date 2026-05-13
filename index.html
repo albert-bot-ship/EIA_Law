@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>環評法律資料庫 | EIA Legal Database</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── Search Results Panel ── */
+    .search-wrap { position: relative; flex: 1; }
+
+    .search-results-panel {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0; right: 0;
+      background: #1A1A26;
+      border: 1px solid var(--m-blue);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+      z-index: 500;
+      overflow: hidden;
+      max-height: 480px;
+      display: flex;
+      flex-direction: column;
+      animation: dropIn 0.18s ease;
+    }
+    @keyframes dropIn {
+      from { opacity:0; transform:translateY(-8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .srp-header {
+      padding: 10px 16px;
+      background: var(--m-surface);
+      border-bottom: 1px solid var(--m-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--m-grey);
+      flex-shrink: 0;
+    }
+    .srp-header strong { color: var(--m-blue-lt); }
+    .srp-close {
+      background: none; border: none; color: var(--m-grey);
+      cursor: pointer; font-size: 14px; padding: 2px 6px;
+      border-radius: 4px; transition: color 0.15s;
+    }
+    .srp-close:hover { color: var(--m-white); }
+    .srp-list { overflow-y: auto; flex: 1; }
+    .srp-law-group { border-bottom: 1px solid var(--m-border); }
+    .srp-law-group:last-child { border-bottom: none; }
+    .srp-law-title {
+      padding: 8px 16px 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--m-grey);
+      letter-spacing: 0.5px;
+      background: rgba(255,255,255,0.02);
+      position: sticky;
+      top: 0;
+    }
+    .srp-law-icon { font-size: 14px; }
+    .srp-article-hit {
+      padding: 10px 16px 10px 36px;
+      cursor: pointer;
+      border-top: 1px solid var(--m-border);
+      transition: background 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .srp-article-hit:hover { background: rgba(28,105,212,0.12); }
+    .srp-art-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--m-blue-lt);
+    }
+    .srp-art-snippet {
+      font-size: 12px;
+      color: var(--m-grey-lt);
+      line-height: 1.6;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .srp-art-snippet mark {
+      background: rgba(255,210,0,0.25);
+      color: #FFD600;
+      border-radius: 2px;
+      padding: 0 2px;
+      font-style: normal;
+    }
+    .srp-no-result {
+      padding: 28px;
+      text-align: center;
+      color: var(--m-grey);
+      font-size: 13px;
+    }
+    .srp-no-result span { font-size: 28px; display: block; margin-bottom: 8px; }
+
+    /* ── Keyword highlight in modal ── */
+    .article-content mark {
+      background: rgba(255,210,0,0.22);
+      color: #FFD600;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+    .article-block.highlighted {
+      border-color: var(--m-blue);
+      background: rgba(28,105,212,0.08);
+      box-shadow: 0 0 0 2px rgba(28,105,212,0.2);
+    }
+
+    /* ── Jump anchor pulse animation ── */
+    @keyframes pulse-border {
+      0%   { box-shadow: 0 0 0 0   rgba(28,105,212,0.7); }
+      50%  { box-shadow: 0 0 0 8px rgba(28,105,212,0); }
+      100% { box-shadow: 0 0 0 0   rgba(28,105,212,0); }
+    }
+    .article-block.jump-target {
+      animation: pulse-border 0.9s ease 2;
+    }
+
+    /* ── Modal internal search bar ── */
+    .modal-search-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--m-border);
+      background: var(--m-surface);
+    }
+    .modal-search-input {
+      flex: 1;
+      background: var(--m-black);
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius);
+      padding: 7px 12px;
+      color: var(--m-white);
+      font-family: var(--font-body);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .modal-search-input:focus { border-color: var(--m-blue); }
+    .modal-search-input::placeholder { color: var(--m-grey); }
+    .modal-nav-btn {
+      background: var(--m-surface);
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius);
+      color: var(--m-grey-lt);
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .modal-nav-btn:hover { border-color: var(--m-blue); color: var(--m-blue-lt); }
+    .modal-nav-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--m-grey);
+      white-space: nowrap;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    /* ── Chapter nav pills inside modal ── */
+    .chapter-nav {
+      display: flex;
+      gap: 6px;
+      padding: 10px 16px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--m-border);
+      background: var(--m-surface);
+      flex-shrink: 0;
+    }
+    .chapter-nav::-webkit-scrollbar { height: 3px; }
+    .ch-pill {
+      background: var(--m-border);
+      border: 1px solid transparent;
+      border-radius: 20px;
+      color: var(--m-grey);
+      font-size: 11px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      padding: 4px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .ch-pill:hover  { background: var(--m-surface); color: var(--m-white); border-color: var(--m-border); }
+    .ch-pill.active { background: rgba(28,105,212,0.15); border-color: var(--m-blue); color: var(--m-blue-lt); }
+
+    /* ── Search mode banner in content area ── */
+    .search-mode-banner {
+      background: rgba(28,105,212,0.08);
+      border: 1px solid rgba(28,105,212,0.25);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--m-grey-lt);
+    }
+    .search-mode-banner strong { color: var(--m-blue-lt); }
+    .search-clear-btn {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--m-border);
+      border-radius: var(--radius);
+      color: var(--m-grey);
+      font-size: 12px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .search-clear-btn:hover { border-color: var(--m-red); color: var(--m-red-lt); }
+
+    /* ── Article hit count badge on card ── */
+    .hit-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(28,105,212,0.15);
+      border: 1px solid rgba(28,105,212,0.4);
+      color: var(--m-blue-lt);
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<header class="site-header">
+  <div class="m-stripe"></div>
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <div class="logo-badge">M</div>
+      <div class="logo-text">
+        <span class="logo-title">環評法律資料庫</span>
+        <span class="logo-sub">EIA Legal Database</span>
+      </div>
+    </a>
+    <nav class="header-nav">
+      <a href="index.html" class="nav-link active">法規查詢</a>
+
+      <!-- 主題切換 -->
+      <div style="position:relative;" id="themeWrap">
+        <button class="theme-btn" onclick="toggleThemeMenu()" id="themeBtn">
+          <span class="theme-icon" id="themeIcon">🌙</span>
+          <span id="themeLabel">深色</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-menu-header">顯示主題</div>
+          <div class="theme-menu-item" id="tmi-auto" onclick="setThemeMode('auto')">
+            <span class="tmi-icon">🌤</span>
+            <div class="tmi-info">
+              <div class="tmi-label">自動（台中日照）</div>
+              <div class="tmi-sub" id="tmiAutoSub">依日出日落自動切換</div>
+            </div>
+            <span class="tmi-check">✓</span>
+          </div>
+          <div class="theme-menu-item" id="tmi-light" onclick="setThemeMode('light')">
+            <span class="tmi-icon">☀️</span>
+            <div class="tmi-info">
+              <div class="tmi-label">淡色模式</div>
+              <div class="tmi-sub">白底深字</div>
+            </div>
+            <span class="tmi-check">✓</span>
+          </div>
+          <div class="theme-menu-item active" id="tmi-dark" onclick="setThemeMode('dark')">
+            <span class="tmi-icon">🌙</span>
+            <div class="tmi-info">
+              <div class="tmi-label">深色模式</div>
+              <div class="tmi-sub">BMW M Power 風格</div>
+            </div>
+            <span class="tmi-check">✓</span>
+          </div>
+        </div>
+      </div>
+
+      <a href="admin.html" class="nav-link btn-admin">後台管理 ›</a>
+    </nav>
+  </div>
+  <!-- 台中日照資訊條 -->
+  <div class="sun-bar" id="sunBar" style="display:none;">
+    <span class="sun-bar-item">📍 台中</span>
+    <span class="sun-bar-sep">|</span>
+    <span class="sun-bar-item">🌅 <span id="sunRise">—</span></span>
+    <span class="sun-bar-item">🌇 <span id="sunSet">—</span></span>
+    <span class="sun-bar-sep">|</span>
+    <div class="sun-progress"><div class="sun-progress-fill" id="sunFill" style="width:0%"></div></div>
+    <span class="sun-bar-item" id="sunStatus" style="color:var(--m-grey-lt);"></span>
+  </div>
+</header>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="hero-inner">
+    <p class="hero-eyebrow">// Environmental Impact Assessment</p>
+    <h1 class="hero-title">台灣環評<span>相關法規</span>查詢系統</h1>
+    <p class="hero-desc">完整彙整環境影響評估法及相關子法、環境影響評估法施行細則、污染防治法規</p>
+
+    <div class="search-bar">
+      <div class="search-wrap" id="searchWrap">
+        <input
+          type="text" id="searchInput" class="search-input"
+          placeholder="輸入關鍵字搜尋法規或條文內容..."
+          autocomplete="off"
+          oninput="onSearchInput()"
+          onkeydown="onSearchKey(event)"
+        />
+        <!-- Instant results panel -->
+        <div class="search-results-panel" id="srpPanel" style="display:none;">
+          <div class="srp-header">
+            <span>找到 <strong id="srpCount">0</strong> 筆符合條文</span>
+            <button class="srp-close" onclick="closeSrp()">✕</button>
+          </div>
+          <div class="srp-list" id="srpList"></div>
+        </div>
+      </div>
+      <button class="search-btn" onclick="doSearch()">🔍 搜尋</button>
+      <button class="search-btn" style="background:var(--m-surface);border:1px solid var(--m-border);color:var(--m-grey);" onclick="clearSearch()" title="清除搜尋">✕</button>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-dot blue"></span>
+        <span class="stat-num" id="statTotal">0</span>
+        <span class="stat-label">部法規</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-dot red"></span>
+        <span class="stat-num" id="statCats">0</span>
+        <span class="stat-label">法規類別</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-dot violet"></span>
+        <span class="stat-num" id="statArticles">0</span>
+        <span class="stat-label">條文數</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="m-stripe-thin"></div>
+
+<!-- ══ LAYOUT ══ -->
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <p class="sidebar-title">法規類別</p>
+      <div id="categoryList"></div>
+    </div>
+  </aside>
+
+  <main class="content-area">
+    <div id="searchBanner" style="display:none;"></div>
+    <div class="toolbar">
+      <span class="toolbar-left">
+        顯示 <strong id="countLabel">0</strong> 部法規
+      </span>
+    </div>
+    <div class="laws-grid" id="lawsGrid"></div>
+  </main>
+</div>
+
+<!-- ══ MODAL ══ -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="m-stripe modal-stripe"></div>
+    <div class="modal-header" id="modalHeader"></div>
+
+    <!-- Chapter navigation pills -->
+    <div class="chapter-nav" id="chapterNav"></div>
+
+    <!-- 工具列：螢光筆 + 字型大小 + 列印 -->
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--m-border);background:var(--m-surface);flex-wrap:wrap;">
+      <!-- 螢光筆 -->
+      <div class="hl-toolbar">
+        <span class="hl-toolbar-label">螢光筆</span>
+        <button class="hl-btn" style="background:#FFD600;" data-color="hl-yellow" onclick="setHlColor('hl-yellow',this)" title="黃色"></button>
+        <button class="hl-btn" style="background:#FF5050;" data-color="hl-red"    onclick="setHlColor('hl-red',this)"    title="紅色"></button>
+        <button class="hl-btn" style="background:#3D8EFF;" data-color="hl-blue"   onclick="setHlColor('hl-blue',this)"   title="藍色"></button>
+        <button class="hl-btn" style="background:#30E06A;" data-color="hl-green"  onclick="setHlColor('hl-green',this)"  title="綠色"></button>
+        <button class="hl-btn erase" onclick="setHlColor(null,this)" title="清除">✕ 清除</button>
+      </div>
+      <!-- 字型大小 -->
+      <div class="font-ctrl">
+        <button class="font-ctrl-btn" onclick="changeFontSize(-1)" title="縮小字型">A−</button>
+        <span class="font-size-label" id="fontSizeLabel">M</span>
+        <button class="font-ctrl-btn" onclick="changeFontSize(+1)" title="放大字型">A+</button>
+      </div>
+      <!-- 列印 -->
+      <button class="print-btn" onclick="printLaw()" style="margin-left:auto;">🖨 列印 / PDF</button>
+    </div>
+
+    <!-- In-modal keyword search -->
+    <div class="modal-search-bar" id="modalSearchBar">
+      <input type="text" class="modal-search-input" id="modalSearchInput"
+        placeholder="在本法條文中搜尋..."
+        oninput="modalSearch()"
+        onkeydown="if(event.key==='Enter') modalNavNext()"
+      />
+      <span class="modal-nav-count" id="modalNavCount"></span>
+      <button class="modal-nav-btn" onclick="modalNavPrev()" title="上一個">↑</button>
+      <button class="modal-nav-btn" onclick="modalNavNext()" title="下一個">↓</button>
+    </div>
+
+    <div class="modal-body" id="modalBody"></div>
+
+    <!-- Attachments section at bottom of modal -->
+    <div class="modal-attach-section" id="modalAttachSection" style="display:none;">
+      <div class="modal-attach-title">📎 附件下載</div>
+      <div class="modal-attach-grid" id="modalAttachGrid"></div>
+    </div>
+
+    <!-- 法規更新時間軸 -->
+    <div class="timeline-section" id="modalTimeline" style="display:none;">
+      <div class="timeline-toggle" id="tlToggle" onclick="toggleTimeline()">
+        <span>📅 修正歷程</span>
+        <span class="tl-arrow">›</span>
+        <span id="tlCount" style="font-size:11px;color:var(--m-grey);margin-left:4px;font-family:var(--font-mono);font-weight:400;"></span>
+      </div>
+      <div class="timeline-body" id="tlBody">
+        <div class="timeline-list" id="tlList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FILE PREVIEW OVERLAY ══ -->
+<div class="pdf-preview-backdrop" id="previewBackdrop" onclick="closePreview(event)">
+  <div class="pdf-preview-toolbar">
+    <span class="pdf-preview-title" id="previewTitle"></span>
+    <button class="modal-nav-btn" onclick="downloadPreviewFile()">⬇️ 下載</button>
+    <button class="modal-nav-btn" onclick="closePreviewDirect()" style="border-color:var(--m-red);color:var(--m-red-lt);">✕ 關閉</button>
+  </div>
+  <iframe class="pdf-preview-frame"  id="previewFrame"    style="display:none;"></iframe>
+  <img    class="img-preview-frame"  id="previewImg"      style="display:none;" alt="預覽" />
+</div>
+
+<!-- ══ 行動版類別 Drawer ══ -->
+<button class="mobile-cat-btn" id="mobileCatBtn" onclick="openDrawer()">
+  ☰ 法規類別
+</button>
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
+<div class="cat-drawer" id="catDrawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-title">法規類別</div>
+  <div class="drawer-list" id="drawerList"></div>
+</div>
+
+<!-- 列印用隱藏區域 -->
+<div id="printArea" style="display:none;"></div>
+
+<!-- ══ FOOTER ══ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-logo">環評法律資料庫 // EIA Legal Database</div>
+    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with M Power</div>
+  </div>
+</footer>
+
+<script>
+// ══════════════════════════════
+// THEME & SUN (台中日照)
+// ══════════════════════════════
+
+// 台中座標
+const TAICHUNG_LAT = 24.1477;
+const TAICHUNG_LNG = 120.6736;
+
+let themeMode    = localStorage.getItem('eia-theme') || 'dark'; // auto | light | dark
+let sunriseMin   = 360;  // 預設 06:00（分鐘）
+let sunsetMin    = 1080; // 預設 18:00（分鐘）
+let sunCheckTimer = null;
+
+// ── 套用主題 ──
+function applyTheme(mode) {
+  const now     = new Date();
+  const nowMin  = now.getHours() * 60 + now.getMinutes();
+  const isDark  = mode === 'dark' || (mode === 'auto' && (nowMin < sunriseMin || nowMin >= sunsetMin));
+
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+
+  const icon  = document.getElementById('themeIcon');
+  const label = document.getElementById('themeLabel');
+  const dot   = document.getElementById('themeAutoDot');
+
+  if (mode === 'auto') {
+    icon.textContent  = isDark ? '🌙' : '☀️';
+    label.textContent = '自動';
+    document.getElementById('themeBtn').innerHTML =
+      `<span class="theme-icon">${isDark ? '🌙' : '☀️'}</span>` +
+      `<span class="theme-auto-dot"></span>` +
+      `<span>自動</span>`;
+  } else {
+    document.getElementById('themeBtn').innerHTML =
+      `<span class="theme-icon">${mode === 'dark' ? '🌙' : '☀️'}</span>` +
+      `<span>${mode === 'dark' ? '深色' : '淡色'}</span>`;
+  }
+
+  // 更新選單 active 狀態
+  ['auto','light','dark'].forEach(m => {
+    const el = document.getElementById('tmi-' + m);
+    if (el) el.classList.toggle('active', m === mode);
+  });
+}
+
+// ── 設定模式 ──
+function setThemeMode(mode) {
+  themeMode = mode;
+  localStorage.setItem('eia-theme', mode);
+  applyTheme(mode);
+  closeThemeMenu();
+  if (mode === 'auto') {
+    fetchSunTimes();
+    document.getElementById('sunBar').style.display = 'flex';
+  } else {
+    document.getElementById('sunBar').style.display = 'none';
+  }
+}
+
+// ── 選單開關 ──
+function toggleThemeMenu() {
+  document.getElementById('themeMenu').classList.toggle('open');
+}
+function closeThemeMenu() {
+  document.getElementById('themeMenu').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('themeWrap');
+  if (wrap && !wrap.contains(e.target)) closeThemeMenu();
+});
+
+// ── 取得台中日出日落（Open-Meteo，免費無 key）──
+async function fetchSunTimes() {
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    const url   = `https://api.open-meteo.com/v1/forecast?latitude=${TAICHUNG_LAT}&longitude=${TAICHUNG_LNG}&daily=sunrise,sunset&timezone=Asia%2FTaipei&start_date=${today}&end_date=${today}`;
+    const res   = await fetch(url);
+    const data  = await res.json();
+
+    const riseStr = data.daily.sunrise[0]; // "2024-05-08T05:25"
+    const setStr  = data.daily.sunset[0];  // "2024-05-08T18:42"
+
+    const riseDate = new Date(riseStr);
+    const setDate  = new Date(setStr);
+    sunriseMin = riseDate.getHours() * 60 + riseDate.getMinutes();
+    sunsetMin  = setDate.getHours()  * 60 + setDate.getMinutes();
+
+    const fmt = d => d.toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit', hour12: false });
+    document.getElementById('sunRise').textContent = fmt(riseDate);
+    document.getElementById('sunSet').textContent  = fmt(setDate);
+
+    updateSunProgress();
+    // 每分鐘更新進度條
+    clearInterval(sunCheckTimer);
+    sunCheckTimer = setInterval(() => {
+      updateSunProgress();
+      if (themeMode === 'auto') applyTheme('auto');
+    }, 60000);
+
+    // 更新選單副標題
+    const sub = document.getElementById('tmiAutoSub');
+    if (sub) sub.textContent = `日出 ${fmt(riseDate)} · 日落 ${fmt(setDate)}`;
+
+    // 若目前是 auto 模式，重新套用主題
+    if (themeMode === 'auto') applyTheme('auto');
+
+  } catch(e) {
+    // API 失敗：用預設時間靜默降級
+    console.warn('Sun API failed, using defaults');
+  }
+}
+
+// ── 更新進度條 ──
+function updateSunProgress() {
+  const now    = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const fill   = document.getElementById('sunFill');
+  const status = document.getElementById('sunStatus');
+  if (!fill) return;
+
+  if (nowMin < sunriseMin) {
+    fill.style.width = '0%';
+    const diff = sunriseMin - nowMin;
+    status.textContent = `距日出 ${Math.floor(diff/60)}h${diff%60}m`;
+  } else if (nowMin >= sunsetMin) {
+    fill.style.width = '100%';
+    status.textContent = '夜間';
+  } else {
+    const pct = ((nowMin - sunriseMin) / (sunsetMin - sunriseMin) * 100).toFixed(1);
+    fill.style.width = pct + '%';
+    const remain = sunsetMin - nowMin;
+    status.textContent = `距日落 ${Math.floor(remain/60)}h${remain%60}m`;
+  }
+}
+
+// ── 初始化主題 ──
+function initTheme() {
+  applyTheme(themeMode);
+  if (themeMode === 'auto') {
+    fetchSunTimes();
+    document.getElementById('sunBar').style.display = 'flex';
+  }
+}
+
+// ══════════════════════════════
+// ══════════════════════════════
+let DB = { categories: [], laws: [] };
+let currentCategory = 'all';
+let searchQuery     = '';
+let srpDebounce     = null;
+
+// Modal internal search state
+let modalHits    = [];   // array of article DOM elements matching modal search
+let modalHitIdx  = -1;
+let currentLaw   = null; // law currently open in modal
+
+// ══════════════════════════════
+// LOAD DATA
+// ══════════════════════════════
+async function loadData() {
+  try {
+    const res = await fetch('laws.json');
+    if (res.ok) DB = await res.json();
+  } catch (_) {}
+  try {
+    const saved = localStorage.getItem('eia-db');
+    if (saved) {
+      const p = JSON.parse(saved);
+      if (p?.laws?.length || p?.categories?.length) DB = p;
+    }
+  } catch (_) {}
+
+  // 補上 localStorage 中可能缺少的新類別
+  const DEFAULT_CATS = [
+    { id:'eia-main',        name:'環境影響評估法',                           icon:'⚖️',  color:'blue'   },
+    { id:'eia-enforcement', name:'環境影響評估法施行細則',                    icon:'📋',  color:'red'    },
+    { id:'pollution',       name:'開發行為應實施環境影響評估細目及範圍認定標準', icon:'🏭',  color:'purple' },
+    { id:'nature',          name:'開發行為環境影響評估作業準則',               icon:'🌿',  color:'blue'   },
+    { id:'water',           name:'水資源相關法規',                            icon:'💧',  color:'red'    },
+    { id:'air',             name:'空氣品質相關法規',                          icon:'🌬️', color:'purple' },
+    { id:'waste',           name:'廢棄物相關法規',                            icon:'🗑️', color:'green'  },
+    { id:'noise',           name:'噪音污染相關法規',                          icon:'🔊',  color:'orange' },
+  ];
+  if (!DB.categories?.length) {
+    DB.categories = DEFAULT_CATS;
+  } else {
+    const existingIds = new Set(DB.categories.map(c => c.id));
+    DEFAULT_CATS.forEach(cat => {
+      if (!existingIds.has(cat.id)) DB.categories.push(cat);
+    });
+  }
+
+  // 格式正規化（前台也需要，確保 iconType/iconData 存在）
+  DB.categories = DB.categories.map(c => ({
+    ...c,
+    iconType: c.iconType || 'emoji',
+    iconData: c.iconData || c.icon || '📁',
+  }));
+
+  renderStats();
+  renderCategories();
+  renderLaws();
+}
+
+// ══════════════════════════════
+// STATS
+// ══════════════════════════════
+function renderStats() {
+  document.getElementById('statTotal').textContent = DB.laws.length;
+  document.getElementById('statCats').textContent  = DB.categories.length;
+  let t = 0;
+  DB.laws.forEach(l => l.chapters?.forEach(c => t += c.articles?.length || 0));
+  document.getElementById('statArticles').textContent = t;
+}
+
+// ══════════════════════════════
+// CATEGORIES
+// ══════════════════════════════
+function catIconHtml(cat, size = 16) {
+  if (cat?.iconType === 'image' && cat?.iconData) {
+    return `<img src="${cat.iconData}" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:3px;vertical-align:middle;">`;
+  }
+  return `<span class="cat-icon">${cat?.icon || cat?.iconData || '📁'}</span>`;
+}
+
+function renderCategories() {
+  const container = document.getElementById('categoryList');
+  const countMap  = {};
+  DB.laws.forEach(l => { countMap[l.category] = (countMap[l.category]||0)+1; });
+
+  container.innerHTML = '';
+
+  const allBtn = makeBtn('cat-btn'+(currentCategory==='all'?' active':''), 'blue',
+    `<span class="cat-icon">📚</span>全部法規<span class="cat-count">${DB.laws.length}</span>`,
+    () => setCategory('all'));
+  container.appendChild(allBtn);
+
+  DB.categories.forEach(cat => {
+    const btn = makeBtn('cat-btn'+(currentCategory===cat.id?' active':''), cat.color,
+      `${catIconHtml(cat)}${esc(cat.name)}<span class="cat-count">${countMap[cat.id]||0}</span>`,
+      () => setCategory(cat.id));
+    container.appendChild(btn);
+  });
+}
+function makeBtn(cls, color, html, fn) {
+  const b = document.createElement('button');
+  b.className = cls; b.setAttribute('data-color', color);
+  b.innerHTML = html; b.onclick = fn;
+  return b;
+}
+function setCategory(id) { currentCategory = id; renderCategories(); renderLaws(); }
+
+// ══════════════════════════════
+// LAWS GRID
+// ══════════════════════════════
+function renderLaws() {
+  const grid = document.getElementById('lawsGrid');
+  const q    = searchQuery.trim().toLowerCase();
+
+  // Filter laws
+  const filtered = DB.laws.filter(l => {
+    const matchCat = currentCategory === 'all' || l.category === currentCategory;
+    if (!q) return matchCat;
+    const matchSearch =
+      l.title.toLowerCase().includes(q) ||
+      (l.summary||'').toLowerCase().includes(q) ||
+      l.chapters?.some(ch =>
+        ch.title?.toLowerCase().includes(q) ||
+        ch.articles?.some(a =>
+          a.number?.toLowerCase().includes(q) ||
+          a.content?.toLowerCase().includes(q)
+        )
+      );
+    return matchCat && matchSearch;
+  });
+
+  document.getElementById('countLabel').textContent = filtered.length;
+
+  // Search mode banner
+  const banner = document.getElementById('searchBanner');
+  if (q) {
+    banner.style.display = 'block';
+    banner.innerHTML = `
+      <div class="search-mode-banner">
+        🔍 搜尋「<strong>${esc(searchQuery)}</strong>」，共找到
+        <strong>${filtered.length}</strong> 部相關法規
+        <button class="search-clear-btn" onclick="clearSearch()">✕ 清除搜尋</button>
+      </div>`;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  grid.innerHTML = '';
+  if (!filtered.length) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">找不到相關法規</div>
+        <div class="empty-desc">請嘗試其他關鍵字或選擇不同類別</div>
+      </div>`;
+    return;
+  }
+
+  filtered.forEach(law => {
+    const cat   = DB.categories.find(c => c.id === law.category);
+    const color = cat?.color || 'blue';
+
+    // Count matching articles when searching
+    let hitCount = 0;
+    if (q) {
+      law.chapters?.forEach(ch =>
+        ch.articles?.forEach(a => {
+          if (a.content?.toLowerCase().includes(q) || a.number?.toLowerCase().includes(q))
+            hitCount++;
+        })
+      );
+    }
+
+    const card = document.createElement('div');
+    card.className = 'law-card';
+    card.setAttribute('data-color', color);
+    const hitBadge = (q && hitCount)
+      ? `<span class="hit-badge">🎯 符合 ${hitCount} 條</span>` : '';
+    card.innerHTML = `
+      <div class="law-card-stripe"></div>
+      <div class="law-card-body">
+        <div class="law-card-icon-wrap">${catIconHtml(cat,22)}</div>
+        <div class="law-card-info">
+          <div class="law-card-title">${esc(law.title)}${hitBadge}</div>
+          <div class="law-card-meta">
+            <span>📅 最新修正：${law.lastAmended||'—'}</span>
+            <span>📌 ${law.lawNumber||'—'}</span>
+          </div>
+          <div class="law-card-summary">${esc(law.summary||'')}</div>
+          <div class="status-badge">
+            <span class="status-dot"></span>${law.status||'現行'}
+          </div>
+        </div>
+        <span class="law-card-arrow">›</span>
+      </div>`;
+    card.onclick = () => openModal(law, q);
+    grid.appendChild(card);
+  });
+}
+
+// ══════════════════════════════
+// INSTANT SEARCH (dropdown)
+// ══════════════════════════════
+function onSearchInput() {
+  clearTimeout(srpDebounce);
+  srpDebounce = setTimeout(buildSrp, 200);
+}
+
+function onSearchKey(e) {
+  if (e.key === 'Enter') { doSearch(); closeSrp(); }
+  if (e.key === 'Escape') closeSrp();
+}
+
+function buildSrp() {
+  const q   = document.getElementById('searchInput').value.trim().toLowerCase();
+  const panel = document.getElementById('srpPanel');
+  const list  = document.getElementById('srpList');
+
+  if (!q || q.length < 1) { closeSrp(); return; }
+
+  // Collect article-level hits across all laws
+  const hits = [];
+  DB.laws.forEach(law => {
+    const cat = DB.categories.find(c => c.id === law.category);
+    (law.chapters || []).forEach(ch => {
+      (ch.articles || []).forEach(art => {
+        const haystack = (art.number + ' ' + art.content).toLowerCase();
+        if (haystack.includes(q) || law.title.toLowerCase().includes(q)) {
+          hits.push({ law, cat, ch, art });
+        }
+      });
+    });
+  });
+
+  document.getElementById('srpCount').textContent = hits.length;
+
+  if (!hits.length) {
+    list.innerHTML = `<div class="srp-no-result"><span>🔎</span>沒有符合「${esc(q)}」的條文</div>`;
+    panel.style.display = 'flex';
+    return;
+  }
+
+  // Group by law
+  const grouped = {};
+  hits.forEach(h => {
+    if (!grouped[h.law.id]) grouped[h.law.id] = { law: h.law, cat: h.cat, arts: [] };
+    grouped[h.law.id].arts.push(h);
+  });
+
+  list.innerHTML = '';
+  Object.values(grouped).forEach(g => {
+    const group = document.createElement('div');
+    group.className = 'srp-law-group';
+    group.innerHTML = `
+      <div class="srp-law-title">
+        <span class="srp-law-icon">${catIconHtml(g.cat,15)}</span>
+        ${esc(g.law.title)}
+        <span class="cat-count" style="margin-left:auto;">${g.arts.length}</span>
+      </div>`;
+
+    g.arts.slice(0, 6).forEach(h => {
+      const row = document.createElement('div');
+      row.className = 'srp-article-hit';
+      const snippet = makeSnippet(h.art.content, q, 80);
+      row.innerHTML = `
+        <div class="srp-art-num">${esc(h.art.number)} · ${esc(h.ch.title)}</div>
+        <div class="srp-art-snippet">${snippet}</div>`;
+      row.onclick = () => {
+        closeSrp();
+        doSearch();
+        openModal(h.law, q, h.art.number);
+      };
+      group.appendChild(row);
+    });
+    if (g.arts.length > 6) {
+      const more = document.createElement('div');
+      more.style.cssText = 'padding:6px 16px 8px 36px;font-size:11px;color:var(--m-grey);font-family:var(--font-mono);';
+      more.textContent = `…還有 ${g.arts.length - 6} 條，點擊法規卡片查看全部`;
+      group.appendChild(more);
+    }
+    list.appendChild(group);
+  });
+
+  panel.style.display = 'flex';
+}
+
+function closeSrp() {
+  document.getElementById('srpPanel').style.display = 'none';
+}
+
+// ── Make highlighted snippet ──
+function makeSnippet(text, q, maxLen) {
+  const lower = (text||'').toLowerCase();
+  const idx   = lower.indexOf(q.toLowerCase());
+  if (idx < 0) return esc(text.slice(0, maxLen)) + (text.length > maxLen ? '…' : '');
+  const start  = Math.max(0, idx - 20);
+  const end    = Math.min(text.length, idx + q.length + 60);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < text.length ? '…' : '';
+  const chunk  = text.slice(start, end);
+  return prefix + highlightKeyword(esc(chunk), esc(q)) + suffix;
+}
+
+function highlightKeyword(html, q) {
+  if (!q) return html;
+  // Case-insensitive replace (on escaped text)
+  const re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+  return html.replace(re, '<mark>$1</mark>');
+}
+
+// ══════════════════════════════
+// SEARCH
+// ══════════════════════════════
+function doSearch() {
+  searchQuery = document.getElementById('searchInput').value.trim();
+  closeSrp();
+  renderLaws();
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  searchQuery = '';
+  closeSrp();
+  renderLaws();
+}
+
+// Close SRP when clicking outside
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('searchWrap');
+  if (wrap && !wrap.contains(e.target)) closeSrp();
+});
+
+// ══════════════════════════════
+// 螢光筆標記
+// ══════════════════════════════
+let currentHlColor = null; // null = erase mode
+
+const HL_COLORS = ['hl-yellow','hl-red','hl-blue','hl-green'];
+
+function setHlColor(color, btn) {
+  currentHlColor = color;
+  // 更新按鈕 active 狀態
+  document.querySelectorAll('.hl-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function getHlKey(lawId, artNum) {
+  return `eia-hl-${lawId}-${artNum.replace(/\s/g,'')}`;
+}
+function saveHl(lawId, artNum, color) {
+  const key = getHlKey(lawId, artNum);
+  try {
+    if (color) localStorage.setItem(key, color);
+    else        localStorage.removeItem(key);
+  } catch(_) {}
+}
+function loadHl(lawId, artNum) {
+  return localStorage.getItem(getHlKey(lawId, artNum)) || null;
+}
+
+// 套用螢光筆到 article block
+function applyHlToBlock(el, color) {
+  HL_COLORS.forEach(c => el.classList.remove(c));
+  if (color) el.classList.add(color);
+}
+
+// 開啟 Modal 後套用已儲存的螢光筆
+function applyAllHighlights(law) {
+  const body = document.getElementById('modalBody');
+  body.querySelectorAll('.article-block').forEach(el => {
+    const artNum = el.dataset.artNum || '';
+    const color  = loadHl(law.id, artNum);
+    applyHlToBlock(el, color);
+    // 點擊條文 → 套用/清除螢光筆
+    el.onclick = (e) => {
+      if (e.target.classList.contains('art-xref')) return; // 不干擾交叉引用
+      if (currentHlColor === undefined) return;
+      const newColor = el.classList.contains(currentHlColor) && currentHlColor
+        ? null  // 再點一次同色 → 清除
+        : currentHlColor;
+      applyHlToBlock(el, newColor);
+      saveHl(law.id, artNum, newColor);
+    };
+    el.style.cursor = 'pointer';
+    el.title = '點擊套用/清除螢光筆';
+  });
+}
+
+// ══════════════════════════════
+// 字型大小調整
+// ══════════════════════════════
+const FONT_SIZES = [12, 13, 14, 16, 18, 20];
+const FONT_LABELS = ['XS','S','M','L','XL','XXL'];
+let fontSizeIdx = parseInt(localStorage.getItem('eia-fontsize') || '2');
+
+function applyFontSize() {
+  const size = FONT_SIZES[fontSizeIdx];
+  document.getElementById('modalBody').style.setProperty('--art-font-size', size + 'px');
+  // 直接對所有條文套用
+  document.querySelectorAll('#modalBody .article-content').forEach(el => {
+    el.style.fontSize = size + 'px';
+  });
+  const label = document.getElementById('fontSizeLabel');
+  if (label) label.textContent = FONT_LABELS[fontSizeIdx];
+}
+
+function changeFontSize(delta) {
+  fontSizeIdx = Math.max(0, Math.min(FONT_SIZES.length - 1, fontSizeIdx + delta));
+  localStorage.setItem('eia-fontsize', fontSizeIdx);
+  applyFontSize();
+}
+
+// ══════════════════════════════
+// 列印 / 匯出 PDF
+// ══════════════════════════════
+function printLaw() {
+  if (!currentLaw) return;
+  const law = currentLaw;
+  const cat = DB.categories.find(c => c.id === law.category);
+
+  // 建立列印內容
+  let html = `
+    <div class="print-title">${esc(law.title)}</div>
+    <div class="print-meta">
+      ${law.lastAmended ? '最新修正：' + esc(law.lastAmended) + '　' : ''}
+      ${law.lawNumber   ? esc(law.lawNumber) + '　' : ''}
+      ${law.authority   ? '主管機關：' + esc(law.authority) : ''}
+      ${cat ? '　類別：' + esc(cat.name) : ''}
+      <br>列印時間：${new Date().toLocaleString('zh-TW')}
+    </div>`;
+
+  if (law.summary) {
+    html += `<div style="font-size:10pt;color:#555;margin-bottom:12pt;padding:6pt;border-left:3pt solid #ccc;">${esc(law.summary)}</div>`;
+  }
+
+  (law.chapters || []).forEach(ch => {
+    html += `<div class="print-chapter">${esc(ch.title)}</div>`;
+    (ch.articles || []).forEach(art => {
+      const hlClass = loadHl(law.id, art.number)
+        ?.replace('hl-','print-hl-') || '';
+      html += `
+        <div class="print-article ${hlClass}">
+          <div class="print-art-num">${esc(art.number)}</div>
+          <div class="print-art-content">${esc(art.content)}</div>
+        </div>`;
+    });
+  });
+
+  const printArea = document.getElementById('printArea');
+  printArea.style.display = 'block';
+  printArea.innerHTML = html;
+  window.print();
+  // 列印後清除
+  setTimeout(() => { printArea.style.display = 'none'; printArea.innerHTML = ''; }, 1000);
+}
+
+// ══════════════════════════════
+// ══════════════════════════════
+const FILE_ICONS = {
+  pdf:'📄', doc:'📝', docx:'📝', xls:'📊', xlsx:'📊',
+  ppt:'📋', pptx:'📋', jpg:'🖼️', jpeg:'🖼️', png:'🖼️',
+  gif:'🖼️', webp:'🖼️', zip:'🗜️', txt:'📃', csv:'📊',
+};
+function fileIcon(name) {
+  const ext = (name||'').split('.').pop().toLowerCase();
+  return FILE_ICONS[ext] || '📎';
+}
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)    return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+function isPreviewable(name, type) {
+  const ext = (name||'').split('.').pop().toLowerCase();
+  return ext === 'pdf' || (type||'').startsWith('image/') || ['jpg','jpeg','png','gif','webp'].includes(ext);
+}
+function renderModalAttachments(law) {
+  const section = document.getElementById('modalAttachSection');
+  const grid    = document.getElementById('modalAttachGrid');
+  const metas   = law.attachments || [];
+  if (!metas.length) { section.style.display = 'none'; return; }
+  grid.innerHTML = '';
+  metas.forEach(meta => {
+    let data = null;
+    try { data = localStorage.getItem(meta.dataKey); } catch(_) {}
+    const canPreview = isPreviewable(meta.name, meta.type);
+    const chip = document.createElement('div');
+    chip.className = 'modal-attach-chip';
+    chip.innerHTML = `
+      <span class="chip-icon">${fileIcon(meta.name)}</span>
+      <div class="chip-info">
+        <span class="chip-name" title="${esc(meta.name)}">${esc(meta.name)}</span>
+        <span class="chip-meta">${formatSize(meta.size)}</span>
+      </div>
+      <span class="chip-action">${canPreview ? '👁 預覽' : '⬇ 下載'}</span>`;
+    if (data) {
+      chip.onclick = () => canPreview ? openPreview(meta.name, meta.type, data) : downloadFile(meta.name, data);
+    } else {
+      chip.style.opacity = '0.4'; chip.style.cursor = 'default';
+      chip.querySelector('.chip-action').textContent = '⚠ 遺失';
+    }
+    grid.appendChild(chip);
+  });
+  section.style.display = 'block';
+}
+let previewData = null, previewName = null;
+function openPreview(name, type, data) {
+  previewData = data; previewName = name;
+  document.getElementById('previewTitle').textContent = name;
+  const frame = document.getElementById('previewFrame');
+  const img   = document.getElementById('previewImg');
+  const ext   = name.split('.').pop().toLowerCase();
+  if (ext === 'pdf' || type === 'application/pdf') {
+    frame.src = data; frame.style.display = 'block'; img.style.display = 'none';
+  } else {
+    img.src = data; img.style.display = 'block'; frame.style.display = 'none';
+  }
+  document.getElementById('previewBackdrop').classList.add('open');
+}
+function downloadFile(name, data) {
+  const a = document.createElement('a'); a.href = data; a.download = name; a.click();
+}
+function downloadPreviewFile() { if (previewData && previewName) downloadFile(previewName, previewData); }
+function closePreview(e) { if (e.target === document.getElementById('previewBackdrop')) closePreviewDirect(); }
+function closePreviewDirect() {
+  document.getElementById('previewBackdrop').classList.remove('open');
+  document.getElementById('previewFrame').src = '';
+  document.getElementById('previewImg').src   = '';
+}
+
+// ══════════════════════════════
+// MODAL
+// ══════════════════════════════
+function openModal(law, highlightQ, jumpToArtNum) {
+  currentLaw = law;
+  const cat  = DB.categories.find(c => c.id === law.category);
+  const q    = (highlightQ||'').trim();
+
+  // ── Header ──
+  document.getElementById('modalHeader').innerHTML = `
+    <span class="modal-icon">${catIconHtml(cat,28)}</span>
+    <div class="modal-header-info">
+      <div class="modal-title">${esc(law.title)}</div>
+      <div class="modal-meta">
+        <span>📅 ${law.lastAmended||'—'}</span>
+        <span>📌 ${law.lawNumber||'—'}</span>
+        <span>🗂 ${cat?.name||'—'}</span>
+      </div>
+    </div>
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>`;
+
+  // ── Chapter nav pills ──
+  const chNav = document.getElementById('chapterNav');
+  if ((law.chapters||[]).length > 1) {
+    chNav.style.display = 'flex';
+    chNav.innerHTML = (law.chapters||[]).map((ch, i) =>
+      `<button class="ch-pill" id="chpill-${i}" onclick="scrollToChapter(${i})">${esc(ch.title)}</button>`
+    ).join('');
+  } else {
+    chNav.style.display = 'none';
+    chNav.innerHTML = '';
+  }
+
+  // ── Body ──
+  const body = document.getElementById('modalBody');
+  let html = '';
+  if (law.summary) html += `<div class="law-summary-box">📋 ${esc(law.summary)}</div>`;
+
+  (law.chapters||[]).forEach((ch, ci) => {
+    html += `<div class="chapter-block" id="modal-ch-${ci}">`;
+    html += `<div class="chapter-title">${esc(ch.title)}</div>`;
+    (ch.articles||[]).forEach((art, ai) => {
+      const artId = `modal-art-${ci}-${ai}`;
+      const contentHtml = q
+        ? linkifyXrefs(highlightKeyword(escNl(art.content), q), law)
+        : linkifyXrefs(escNl(art.content), law);
+      const isHit = q && (
+        (art.content||'').toLowerCase().includes(q.toLowerCase()) ||
+        (art.number||'').toLowerCase().includes(q.toLowerCase())
+      );
+      html += `
+        <div class="article-block${isHit?' highlighted':''}" id="${artId}" data-art-num="${esc(art.number)}">
+          <div class="article-number">${esc(art.number)}</div>
+          <div class="article-content">${contentHtml}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  if (!html) html = '<div class="empty-state"><div class="empty-icon">📂</div><div class="empty-title">尚無條文內容</div></div>';
+  body.innerHTML = html;
+
+  // ── Pre-fill modal search if we have a query ──
+  const msi = document.getElementById('modalSearchInput');
+  if (q) { msi.value = q; modalSearch(); }
+  else   { msi.value = ''; clearModalSearch(); }
+
+  document.getElementById('modalBackdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // ── Render attachments ──
+  renderModalAttachments(law);
+
+  // ── Render timeline ──
+  renderTimeline(law);
+
+  // ── 螢光筆 & 字型大小 ──
+  requestAnimationFrame(() => {
+    applyAllHighlights(law);
+    applyFontSize();
+    currentHlColor = null;
+    document.querySelectorAll('.hl-btn').forEach(b => b.classList.remove('active'));
+    const label = document.getElementById('fontSizeLabel');
+    if (label) label.textContent = FONT_LABELS[fontSizeIdx];
+  });
+
+  // ── Jump to specific article ──
+  if (jumpToArtNum) {
+    requestAnimationFrame(() => {
+      const el = body.querySelector(`[data-art-num="${CSS.escape(jumpToArtNum)}"]`);
+      if (el) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        el.classList.add('jump-target');
+        setTimeout(() => el.classList.remove('jump-target'), 2000);
+      }
+    });
+  } else if (q) {
+    // Jump to first highlighted article
+    requestAnimationFrame(() => {
+      const first = body.querySelector('.article-block.highlighted');
+      if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+  }
+
+  // Update chapter pills on scroll
+  body.onscroll = () => updateActivePill(law.chapters||[]);
+}
+
+// ── Chapter nav ──
+function scrollToChapter(ci) {
+  const el = document.getElementById(`modal-ch-${ci}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelectorAll('.ch-pill').forEach((p,i) =>
+    p.classList.toggle('active', i === ci));
+}
+function updateActivePill(chapters) {
+  const body = document.getElementById('modalBody');
+  const scrollTop = body.scrollTop + 60;
+  let active = 0;
+  chapters.forEach((_, ci) => {
+    const el = document.getElementById(`modal-ch-${ci}`);
+    if (el && el.offsetTop <= scrollTop) active = ci;
+  });
+  document.querySelectorAll('.ch-pill').forEach((p,i) =>
+    p.classList.toggle('active', i === active));
+}
+
+// ══════════════════════════════
+// MODAL INTERNAL SEARCH
+// ══════════════════════════════
+function modalSearch() {
+  const q = document.getElementById('modalSearchInput').value.trim().toLowerCase();
+  const body = document.getElementById('modalBody');
+  modalHits = []; modalHitIdx = -1;
+
+  // Remove existing highlights not from card-search (rebuild from currentLaw)
+  if (!q) { clearModalSearch(); return; }
+
+  // Re-render body with new highlight
+  if (!currentLaw) return;
+  const cat = DB.categories.find(c => c.id === currentLaw.category);
+  let html = '';
+  if (currentLaw.summary) html += `<div class="law-summary-box">📋 ${esc(currentLaw.summary)}</div>`;
+  (currentLaw.chapters||[]).forEach((ch, ci) => {
+    html += `<div class="chapter-block" id="modal-ch-${ci}">`;
+    html += `<div class="chapter-title">${esc(ch.title)}</div>`;
+    (ch.articles||[]).forEach((art, ai) => {
+      const artId = `modal-art-${ci}-${ai}`;
+      const isHit = art.content?.toLowerCase().includes(q) ||
+                    art.number?.toLowerCase().includes(q);
+      const contentHtml = isHit
+        ? linkifyXrefs(highlightKeyword(escNl(art.content), q), currentLaw)
+        : linkifyXrefs(escNl(art.content), currentLaw);
+      html += `
+        <div class="article-block${isHit?' highlighted':''}" id="${artId}" data-art-num="${esc(art.number)}">
+          <div class="article-number">${esc(art.number)}</div>
+          <div class="article-content">${contentHtml}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+  body.innerHTML = html;
+  body.onscroll = () => updateActivePill(currentLaw.chapters||[]);
+  applyAllHighlights(currentLaw);
+  applyFontSize();
+
+  // Collect hits
+  modalHits = Array.from(body.querySelectorAll('.article-block.highlighted'));
+  updateModalNavCount();
+  if (modalHits.length) { modalHitIdx = 0; scrollToHit(0); }
+}
+
+function clearModalSearch() {
+  modalHits = []; modalHitIdx = -1;
+  document.getElementById('modalNavCount').textContent = '';
+  if (!currentLaw) return;
+  const body = document.getElementById('modalBody');
+  let html = '';
+  if (currentLaw.summary) html += `<div class="law-summary-box">📋 ${esc(currentLaw.summary)}</div>`;
+  (currentLaw.chapters||[]).forEach((ch, ci) => {
+    html += `<div class="chapter-block" id="modal-ch-${ci}">`;
+    html += `<div class="chapter-title">${esc(ch.title)}</div>`;
+    (ch.articles||[]).forEach((art, ai) => {
+      html += `
+        <div class="article-block" id="modal-art-${ci}-${ai}" data-art-num="${esc(art.number)}">
+          <div class="article-number">${esc(art.number)}</div>
+          <div class="article-content">${escNl(art.content)}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+  body.innerHTML = html;
+  body.onscroll = () => updateActivePill(currentLaw.chapters||[]);
+}
+
+function modalNavNext() {
+  if (!modalHits.length) return;
+  modalHitIdx = (modalHitIdx + 1) % modalHits.length;
+  scrollToHit(modalHitIdx);
+}
+function modalNavPrev() {
+  if (!modalHits.length) return;
+  modalHitIdx = (modalHitIdx - 1 + modalHits.length) % modalHits.length;
+  scrollToHit(modalHitIdx);
+}
+function scrollToHit(i) {
+  modalHits[i]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  updateModalNavCount();
+}
+function updateModalNavCount() {
+  document.getElementById('modalNavCount').textContent =
+    modalHits.length ? `${modalHitIdx+1} / ${modalHits.length}` : '無結果';
+}
+
+// ══════════════════════════════
+// MODAL CLOSE
+// ══════════════════════════════
+function closeModal(e) {
+  if (e.target === document.getElementById('modalBackdrop')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modalBackdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('modalAttachSection').style.display = 'none';
+  currentLaw = null;
+  modalHits = []; modalHitIdx = -1;
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('previewBackdrop').classList.contains('open')) {
+      closePreviewDirect(); return;
+    }
+    if (document.getElementById('catDrawer').classList.contains('open')) {
+      closeDrawer(); return;
+    }
+    closeModalDirect();
+  }
+  if (document.getElementById('modalBackdrop').classList.contains('open')) {
+    if (e.key === 'F3' || (e.ctrlKey && e.key === 'f')) {
+      e.preventDefault();
+      document.getElementById('modalSearchInput').focus();
+    }
+  }
+});
+
+// ══════════════════════════════
+// UTILS
+// ══════════════════════════════
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escNl(s) {
+  return esc(s).replace(/\n/g,'<br>');
+}
+
+// ══════════════════════════════
+// FEATURE 1: Enter 搜尋（已有，補強）
+// ══════════════════════════════
+// onSearchKey 已處理 Enter，此處確保主搜尋欄 Enter 正確觸發
+// （已在 onSearchKey 內實作，無需額外程式）
+
+// ══════════════════════════════
+// ══════════════════════════════
+// FEATURE 3: 行動版 Drawer
+// ══════════════════════════════
+function openDrawer() {
+  renderDrawer();
+  document.getElementById('drawerBackdrop').classList.add('open');
+  document.getElementById('catDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('drawerBackdrop').classList.remove('open');
+  document.getElementById('catDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function renderDrawer() {
+  const list = document.getElementById('drawerList');
+  const countMap = {};
+  DB.laws.forEach(l => { countMap[l.category] = (countMap[l.category]||0)+1; });
+
+  let html = `<button class="drawer-cat-btn${currentCategory==='all'?' active':''}" onclick="setCategory('all');closeDrawer();">
+    <span style="font-size:18px;">📚</span>全部法規
+    <span class="drawer-cat-count">${DB.laws.length}</span>
+  </button>`;
+  DB.categories.forEach(cat => {
+    const iconHtml = cat.iconType === 'image'
+      ? `<img src="${cat.iconData}" style="width:22px;height:22px;object-fit:cover;border-radius:3px;">`
+      : `<span style="font-size:18px;">${cat.icon||cat.iconData||'📁'}</span>`;
+    html += `<button class="drawer-cat-btn${currentCategory===cat.id?' active':''}"
+      onclick="setCategory('${cat.id}');closeDrawer();">
+      ${iconHtml}${esc(cat.name)}
+      <span class="drawer-cat-count">${countMap[cat.id]||0}</span>
+    </button>`;
+  });
+  list.innerHTML = html;
+}
+
+// ══════════════════════════════
+// FEATURE 4: 條文交叉引用
+// ══════════════════════════════
+function linkifyXrefs(html, law) {
+  // 偵測「第X條」、「第X條之Y」等格式
+  const re = /(第\s*[零一二三四五六七八九十百千\d]+(?:[-之]\d+)?\s*條(?:之[零一二三四五六七八九十\d]+)?)/g;
+  return html.replace(re, (match) => {
+    const numClean = match.replace(/\s/g,'');
+    return `<span class="art-xref" onclick="jumpToArt('${numClean.replace(/'/g,"\\'")}',event)" title="跳至 ${numClean}">${match}</span>`;
+  });
+}
+function jumpToArt(artNum, e) {
+  e.stopPropagation();
+  const body = document.getElementById('modalBody');
+  // 找出最接近的條文
+  const all = body.querySelectorAll('.article-block');
+  let target = null;
+  all.forEach(el => {
+    const num = el.dataset.artNum || '';
+    if (num.replace(/\s/g,'') === artNum.replace(/\s/g,'')) target = el;
+  });
+  if (target) {
+    target.scrollIntoView({ block:'center', behavior:'smooth' });
+    target.classList.add('jump-target');
+    setTimeout(() => target.classList.remove('jump-target'), 1800);
+  }
+}
+
+// ══════════════════════════════
+// FEATURE 5: 法規更新時間軸
+// ══════════════════════════════
+function renderTimeline(law) {
+  const section = document.getElementById('modalTimeline');
+  const list    = document.getElementById('tlList');
+  const countEl = document.getElementById('tlCount');
+  const history = law.history || [];
+
+  if (!history.length && !law.lastAmended) { section.style.display = 'none'; return; }
+
+  // 合併 lastAmended 作為最新一筆（若無重複）
+  let items = [...history];
+  if (law.lastAmended && !items.find(i => i.date === law.lastAmended)) {
+    items.unshift({ date: law.lastAmended, desc: '最新修正版本' });
+  }
+  items = items.sort((a,b) => b.date.localeCompare(a.date));
+
+  countEl.textContent = `${items.length} 筆`;
+  list.innerHTML = items.map(item => `
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-date">${esc(item.date)}</div>
+      <div class="tl-desc">${esc(item.desc || '修正')}</div>
+    </div>`).join('');
+
+  section.style.display = 'block';
+  // 重置展開狀態
+  document.getElementById('tlToggle').classList.remove('open');
+  document.getElementById('tlBody').classList.remove('open');
+}
+function toggleTimeline() {
+  document.getElementById('tlToggle').classList.toggle('open');
+  document.getElementById('tlBody').classList.toggle('open');
+}
+
+// ══════════════════════════════
+// ══════════════════════════════
+initTheme();
+loadData();
+</script>
+</body>
+</html>
