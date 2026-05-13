@@ -1702,3 +1702,152 @@ body {
   color:var(--m-red-lt); font-size:10px; font-family:var(--font-mono);
   padding:2px 8px; border-radius:10px; margin-left:6px;
 }
+
+/* ============================================
+   螢光筆標記
+   ============================================ */
+.hl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--m-surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--m-border);
+  flex-wrap: wrap;
+}
+.hl-toolbar-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--m-grey);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.hl-btn {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.hl-btn:hover { transform: scale(1.2); }
+.hl-btn.active { border-color: var(--m-white); box-shadow: 0 0 0 2px currentColor; }
+.hl-btn.erase {
+  background: var(--m-border);
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  width: auto; height: auto;
+  border-radius: var(--radius);
+  padding: 3px 8px;
+  color: var(--m-grey);
+  font-family: var(--font-mono);
+  border: 1px solid var(--m-border);
+}
+.hl-btn.erase:hover { color: var(--m-red-lt); border-color: var(--m-red); }
+
+/* 螢光筆顏色 */
+.hl-yellow  { background: rgba(255,214,0,0.35);  border-left: 3px solid #FFD600 !important; }
+.hl-red     { background: rgba(255,80,80,0.2);   border-left: 3px solid #FF5050 !important; }
+.hl-blue    { background: rgba(28,105,212,0.2);  border-left: 3px solid var(--m-blue-lt) !important; }
+.hl-green   { background: rgba(48,224,106,0.18); border-left: 3px solid #30E06A !important; }
+[data-theme="light"] .hl-yellow  { background: rgba(255,214,0,0.25); }
+[data-theme="light"] .hl-red     { background: rgba(220,50,50,0.12); }
+[data-theme="light"] .hl-blue    { background: rgba(28,105,212,0.1); }
+[data-theme="light"] .hl-green   { background: rgba(30,150,80,0.12); }
+
+.article-block.hl-yellow .article-content,
+.article-block.hl-red    .article-content,
+.article-block.hl-blue   .article-content,
+.article-block.hl-green  .article-content { color: var(--m-white); }
+[data-theme="light"] .article-block.hl-yellow .article-content,
+[data-theme="light"] .article-block.hl-red    .article-content,
+[data-theme="light"] .article-block.hl-blue   .article-content,
+[data-theme="light"] .article-block.hl-green  .article-content { color: var(--m-white); }
+
+/* ============================================
+   字型大小調整
+   ============================================ */
+.font-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.font-ctrl-btn {
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  border-radius: var(--radius);
+  color: var(--m-grey-lt);
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 14px; font-weight: 700;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.font-ctrl-btn:hover { border-color: var(--m-blue); color: var(--m-blue-lt); }
+.font-size-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--m-grey);
+  min-width: 28px;
+  text-align: center;
+}
+
+/* ============================================
+   列印樣式
+   ============================================ */
+.print-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--m-surface); border: 1px solid var(--m-border);
+  border-radius: var(--radius); color: var(--m-grey-lt);
+  padding: 6px 14px; font-family: var(--font-display);
+  font-size: 12px; font-weight: 700; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.print-btn:hover { border-color: var(--m-blue); color: var(--m-blue-lt); }
+
+@media print {
+  body * { visibility: hidden; }
+  #printArea, #printArea * { visibility: visible; }
+  #printArea {
+    position: fixed; top: 0; left: 0;
+    width: 100%; background: #fff;
+    color: #111; padding: 20mm;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+  .print-title {
+    font-size: 20pt; font-weight: 700;
+    border-bottom: 2px solid #111;
+    padding-bottom: 6pt; margin-bottom: 12pt;
+  }
+  .print-meta {
+    font-size: 9pt; color: #555;
+    margin-bottom: 16pt;
+  }
+  .print-chapter {
+    font-size: 12pt; font-weight: 700;
+    margin: 16pt 0 8pt;
+    border-left: 4pt solid #1C69D4;
+    padding-left: 8pt;
+  }
+  .print-article {
+    display: flex; gap: 12pt;
+    margin-bottom: 8pt;
+    page-break-inside: avoid;
+  }
+  .print-art-num {
+    font-size: 9pt; color: #1C69D4;
+    min-width: 56pt; flex-shrink: 0;
+    font-weight: 700;
+  }
+  .print-art-content {
+    font-size: 10pt; line-height: 1.8;
+    white-space: pre-line;
+  }
+  .print-hl-yellow { background: #FFF9C4; }
+  .print-hl-red    { background: #FFEBEE; }
+  .print-hl-blue   { background: #E3F2FD; }
+  .print-hl-green  { background: #E8F5E9; }
+}
