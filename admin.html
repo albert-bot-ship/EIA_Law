@@ -1030,6 +1030,17 @@ async function init() {
   initCaseTracker();
   initTlEditor([]);
   renderDashboard();
+
+  // 解析模式按鈕綁定
+  document.querySelectorAll('.parse-mode-btn input').forEach(radio => {
+    radio.addEventListener('change', () => switchParseMode(radio.value));
+  });
+  document.querySelectorAll('.parse-mode-btn').forEach(label => {
+    label.addEventListener('click', () => {
+      const radio = label.querySelector('input');
+      if (radio) { radio.checked = true; switchParseMode(radio.value); }
+    });
+  });
   document.getElementById('cName').addEventListener('input', updateCatPreview);
   document.getElementById('pasteArea').addEventListener('input', () => {
     document.getElementById('charCount').textContent =
@@ -1089,17 +1100,6 @@ function switchParseMode(mode) {
   };
   document.getElementById('pasteArea').placeholder = placeholders[mode] || placeholders.article;
 }
-
-// 初始化綁定
-document.querySelectorAll('.parse-mode-btn input').forEach(radio => {
-  radio.addEventListener('change', () => switchParseMode(radio.value));
-});
-document.querySelectorAll('.parse-mode-btn').forEach(label => {
-  label.addEventListener('click', () => {
-    const radio = label.querySelector('input');
-    if (radio) { radio.checked = true; switchParseMode(radio.value); }
-  });
-});
 
 // ── Parse ──
 function getParseMode() {
