@@ -503,19 +503,13 @@ let sunCheckTimer = null;
 
 // ── 套用主題 ──
 function applyTheme(mode) {
-  const now     = new Date();
-  const nowMin  = now.getHours() * 60 + now.getMinutes();
-  const isDark  = mode === 'dark' || (mode === 'auto' && (nowMin < sunriseMin || nowMin >= sunsetMin));
+  const now    = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const isDark = mode === 'dark' || (mode === 'auto' && (nowMin < sunriseMin || nowMin >= sunsetMin));
 
   document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
 
-  const icon  = document.getElementById('themeIcon');
-  const label = document.getElementById('themeLabel');
-  const dot   = document.getElementById('themeAutoDot');
-
   if (mode === 'auto') {
-    icon.textContent  = isDark ? '🌙' : '☀️';
-    label.textContent = '自動';
     document.getElementById('themeBtn').innerHTML =
       `<span class="theme-icon">${isDark ? '🌙' : '☀️'}</span>` +
       `<span class="theme-auto-dot"></span>` +
@@ -526,7 +520,6 @@ function applyTheme(mode) {
       `<span>${mode === 'dark' ? '深色' : '淡色'}</span>`;
   }
 
-  // 更新選單 active 狀態
   ['auto','light','dark'].forEach(m => {
     const el = document.getElementById('tmi-' + m);
     if (el) el.classList.toggle('active', m === mode);
