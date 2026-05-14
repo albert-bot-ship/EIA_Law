@@ -10,23 +10,26 @@
     .search-wrap { position: relative; flex: 1; }
 
     .search-results-panel {
-      position: absolute;
-      top: calc(100% + 8px);
-      left: 0; right: 0;
-      background: #1A1A26;
+      position: fixed;
+      /* 位置由 JS 動態計算，這裡是預設值 */
+      top: 180px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(680px, calc(100vw - 48px));
+      background: var(--m-card);
       border: 1px solid var(--m-blue);
       border-radius: var(--radius-lg);
-      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
       z-index: 500;
       overflow: hidden;
-      max-height: 480px;
       display: flex;
       flex-direction: column;
+      max-height: calc(100vh - 220px); /* 螢幕高度扣掉頂部空間 */
       animation: dropIn 0.18s ease;
     }
     @keyframes dropIn {
-      from { opacity:0; transform:translateY(-8px); }
-      to   { opacity:1; transform:translateY(0); }
+      from { opacity:0; transform: translateX(-50%) translateY(-8px); }
+      to   { opacity:1; transform: translateX(-50%) translateY(0); }
     }
     .srp-header {
       padding: 10px 16px;
@@ -47,7 +50,16 @@
       border-radius: 4px; transition: color 0.15s;
     }
     .srp-close:hover { color: var(--m-white); }
-    .srp-list { overflow-y: auto; flex: 1; }
+    .srp-list {
+      overflow-y: auto;
+      flex: 1;
+      overscroll-behavior: contain; /* 滾到底不觸發頁面捲動 */
+    }
+    .srp-list::-webkit-scrollbar { width: 5px; }
+    .srp-list::-webkit-scrollbar-track { background: transparent; }
+    .srp-list::-webkit-scrollbar-thumb {
+      background: var(--m-border); border-radius: 3px;
+    }
     .srp-law-group { border-bottom: 1px solid var(--m-border); }
     .srp-law-group:last-child { border-bottom: none; }
     .srp-law-title {
@@ -60,9 +72,10 @@
       font-weight: 700;
       color: var(--m-grey);
       letter-spacing: 0.5px;
-      background: rgba(255,255,255,0.02);
+      background: var(--m-surface);
       position: sticky;
       top: 0;
+      z-index: 1;
     }
     .srp-law-icon { font-size: 14px; }
     .srp-article-hit {
@@ -84,10 +97,7 @@
       font-size: 12px;
       color: var(--m-grey-lt);
       line-height: 1.6;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+      /* 移除 line-clamp，改為完整顯示，依靠容器滾動 */
     }
     .srp-art-snippet mark {
       background: rgba(255,210,0,0.25);
@@ -476,7 +486,7 @@
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-logo">環評法律資料庫 // EIA Legal Database</div>
-    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with Albert</div>
+    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with M Power</div>
   </div>
 </footer>
 
@@ -846,6 +856,14 @@ function buildSrp() {
 
   if (!q || q.length < 1) { closeSrp(); return; }
 
+  // 動態定位：對齊搜尋框下方
+  const inputEl = document.getElementById('searchInput');
+  const rect = inputEl.getBoundingClientRect();
+  panel.style.top  = (rect.bottom + 8) + 'px';
+  panel.style.left = rect.left + 'px';
+  panel.style.transform = 'none';
+  panel.style.width = Math.max(rect.width + 80, 480) + 'px';
+
   // Collect article-level hits across all laws
   const hits = [];
   DB.laws.forEach(law => {
@@ -1075,10 +1093,19 @@ function printLaw() {
   });
 
   const printArea = document.getElementById('printArea');
-  printArea.style.display = 'block';
   printArea.innerHTML = html;
-  window.print();
-  setTimeout(() => { printArea.style.display = 'none'; printArea.innerHTML = ''; }, 1000);
+  printArea.style.display = 'block';
+
+  // 等 DOM 渲染完才呼叫 print，避免內容尚未就緒
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        printArea.style.display = 'none';
+        printArea.innerHTML = '';
+      }, 800);
+    }, 150);
+  });
 }
 
 // ══════════════════════════════
