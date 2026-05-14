@@ -479,9 +479,6 @@
   <div class="drawer-list" id="drawerList"></div>
 </div>
 
-<!-- 列印用隱藏區域 -->
-<div id="printArea" style="display:none;"></div>
-
 <!-- ══ FOOTER ══ -->
 <footer class="site-footer">
   <div class="footer-inner">
@@ -1057,55 +1054,160 @@ function changeFontSize(delta) {
 }
 
 // ══════════════════════════════
-// 列印 / 匯出 PDF
+// 列印 / 匯出 PDF（開新視窗，完全隔離）
 // ══════════════════════════════
 function printLaw() {
   if (!currentLaw) return;
   const law = currentLaw;
   const cat = DB.categories.find(c => c.id === law.category);
 
-  // 建立列印內容
-  let html = `
-    <div class="print-title">${esc(law.title)}</div>
-    <div class="print-meta">
-      ${law.lastAmended ? '最新修正：' + esc(law.lastAmended) + '　' : ''}
-      ${law.lawNumber   ? esc(law.lawNumber) + '　' : ''}
-      ${law.authority   ? '主管機關：' + esc(law.authority) : ''}
-      ${cat ? '　類別：' + esc(cat.name) : ''}
-      <br>列印時間：${new Date().toLocaleString('zh-TW')}
-    </div>`;
+  // ── 建立條文 HTML ──
+  let bodyHtml = '';
 
   if (law.summary) {
-    html += `<div style="font-size:10pt;color:#555;margin-bottom:12pt;padding:6pt;border-left:3pt solid #ccc;">${esc(law.summary)}</div>`;
+    bodyHtml += `<div class="summary-box">${esc(law.summary)}</div>`;
   }
 
   (law.chapters || []).forEach(ch => {
-    html += `<div class="print-chapter">${esc(ch.title)}</div>`;
+    bodyHtml += `<div class="chapter">${esc(ch.title)}</div>`;
     (ch.articles || []).forEach(art => {
-      const hlClass = loadHl(law.id, art.number)
-        ?.replace('hl-','print-hl-') || '';
-      html += `
-        <div class="print-article ${hlClass}">
-          <div class="print-art-num">${esc(art.number)}</div>
-          <div class="print-art-content">${esc(art.content)}</div>
+      const hlColor = loadHl(law.id, art.number) || '';
+      const hlStyle = {
+        'hl-yellow': 'background:#FFF9C4;',
+        'hl-red':    'background:#FFEBEE;',
+        'hl-blue':   'background:#E3F2FD;',
+        'hl-green':  'background:#E8F5E9;',
+      }[hlColor] || '';
+      bodyHtml += `
+        <div class="article" style="${hlStyle}">
+          <div class="art-num">${esc(art.number)}</div>
+          <div class="art-content">${esc(art.content).replace(/\n/g,'<br>')}</div>
         </div>`;
     });
   });
 
-  const printArea = document.getElementById('printArea');
-  printArea.innerHTML = html;
-  printArea.style.display = 'block';
+  // ── 組合完整 HTML 頁面 ──
+  const fullHtml = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>${esc(law.title)}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    @page {
+      size: A4;
+      margin: 18mm 20mm 16mm 20mm;
+    }
+    body {
+      font-family: 'Noto Sans TC', '微軟正黑體', 'Microsoft JhengHei', sans-serif;
+      font-size: 10pt;
+      line-height: 1.85;
+      color: #111;
+      background: #fff;
+    }
+    .header {
+      border-bottom: 2.5pt solid #1C69D4;
+      padding-bottom: 8pt;
+      margin-bottom: 10pt;
+    }
+    h1 {
+      font-size: 18pt;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 6pt;
+    }
+    .meta {
+      font-size: 9pt;
+      color: #555;
+      line-height: 1.8;
+    }
+    .summary-box {
+      font-size: 9pt;
+      color: #444;
+      border-left: 3pt solid #aaa;
+      padding: 5pt 8pt;
+      margin: 10pt 0 14pt;
+      line-height: 1.7;
+    }
+    .chapter {
+      font-size: 11.5pt;
+      font-weight: 700;
+      color: #1C69D4;
+      border-left: 4pt solid #1C69D4;
+      padding: 3pt 8pt;
+      margin: 14pt 0 6pt;
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+    .article {
+      display: flex;
+      gap: 10pt;
+      padding: 5pt 6pt;
+      margin-bottom: 5pt;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      border-radius: 2pt;
+    }
+    .art-num {
+      font-size: 9pt;
+      color: #1C69D4;
+      font-weight: 700;
+      min-width: 54pt;
+      flex-shrink: 0;
+      padding-top: 1pt;
+    }
+    .art-content {
+      font-size: 10pt;
+      line-height: 1.85;
+      color: #111;
+      word-break: break-word;
+    }
+    .footer {
+      font-size: 8pt;
+      color: #999;
+      text-align: center;
+      margin-top: 20pt;
+      padding-top: 6pt;
+      border-top: 1pt solid #ddd;
+    }
+    /* 螢光筆確保列印 */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${esc(law.title)}</h1>
+    <div class="meta">
+      ${law.lastAmended ? '最新修正：<strong>' + esc(law.lastAmended) + '</strong>　' : ''}
+      ${law.lawNumber   ? esc(law.lawNumber) + '　' : ''}
+      ${law.authority   ? '主管機關：' + esc(law.authority) : ''}
+      ${cat             ? '　類別：' + esc(cat.name) : ''}
+    </div>
+  </div>
 
-  // 等 DOM 渲染完才呼叫 print，避免內容尚未就緒
-  requestAnimationFrame(() => {
-    setTimeout(() => {
+  ${bodyHtml}
+
+  <div class="footer">
+    列印時間：${new Date().toLocaleString('zh-TW')}　｜　環評法律資料庫
+  </div>
+
+  <script>
+    window.onload = function() {
       window.print();
-      setTimeout(() => {
-        printArea.style.display = 'none';
-        printArea.innerHTML = '';
-      }, 800);
-    }, 150);
-  });
+      setTimeout(function() { window.close(); }, 1000);
+    };
+  <\/script>
+</body>
+</html>`;
+
+  // ── 開新視窗列印 ──
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) {
+    showToast('⚠️', '瀏覽器封鎖了彈出視窗，請允許後重試', true);
+    return;
+  }
+  win.document.write(fullHtml);
+  win.document.close();
 }
 
 // ══════════════════════════════
