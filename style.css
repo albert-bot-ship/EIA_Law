@@ -1385,81 +1385,6 @@ body {
 }
 
 /* ============================================
-   FEATURE: 全站快捷搜尋 Ctrl+K
-   ============================================ */
-.cmdk-backdrop {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.65);
-  backdrop-filter: blur(6px);
-  z-index: 600;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 80px 20px 20px;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.2s;
-}
-.cmdk-backdrop.open { opacity: 1; pointer-events: all; }
-.cmdk-box {
-  background: var(--m-card);
-  border: 1px solid var(--m-blue);
-  border-radius: var(--radius-lg);
-  width: 100%; max-width: 640px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
-  overflow: hidden;
-  transform: translateY(-12px) scale(0.98);
-  transition: transform 0.2s;
-}
-.cmdk-backdrop.open .cmdk-box { transform: translateY(0) scale(1); }
-.cmdk-input-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--m-border);
-}
-.cmdk-icon { font-size: 18px; flex-shrink: 0; color: var(--m-blue-lt); }
-.cmdk-input {
-  flex: 1; background: none; border: none; outline: none;
-  font-family: var(--font-body); font-size: 16px; color: var(--m-white);
-}
-.cmdk-input::placeholder { color: var(--m-grey); }
-.cmdk-kbd {
-  font-family: var(--font-mono); font-size: 11px;
-  background: var(--m-surface); border: 1px solid var(--m-border);
-  border-radius: 4px; padding: 2px 6px; color: var(--m-grey);
-  white-space: nowrap;
-}
-.cmdk-results { max-height: 420px; overflow-y: auto; }
-.cmdk-section-title {
-  padding: 8px 16px 4px;
-  font-family: var(--font-mono); font-size: 10px;
-  letter-spacing: 2px; color: var(--m-grey);
-  text-transform: uppercase;
-  background: var(--m-surface);
-}
-.cmdk-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 11px 16px; cursor: pointer;
-  border-top: 1px solid var(--m-border);
-  transition: background 0.12s;
-}
-.cmdk-item:hover, .cmdk-item.focused { background: rgba(28,105,212,0.1); }
-.cmdk-item-icon { font-size: 18px; flex-shrink: 0; }
-.cmdk-item-info { flex: 1; min-width: 0; }
-.cmdk-item-title { font-size: 13px; color: var(--m-white); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cmdk-item-sub { font-size: 11px; color: var(--m-grey); font-family: var(--font-mono); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cmdk-item-sub mark { background: rgba(255,210,0,0.2); color: #FFD600; border-radius: 2px; padding: 0 2px; }
-.cmdk-item-arrow { color: var(--m-grey); font-size: 14px; flex-shrink: 0; }
-.cmdk-empty { padding: 32px; text-align: center; color: var(--m-grey); font-size: 13px; }
-.cmdk-footer {
-  padding: 8px 16px;
-  border-top: 1px solid var(--m-border);
-  display: flex; gap: 14px; align-items: center;
-  font-size: 11px; color: var(--m-grey);
-  background: var(--m-surface);
-}
-.cmdk-footer-hint { display: flex; align-items: center; gap: 5px; }
-
-/* ============================================
    FEATURE: 行動版側欄 Drawer
    ============================================ */
 .mobile-cat-btn {
@@ -1807,50 +1732,6 @@ body {
   cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
 .print-btn:hover { border-color: var(--m-blue); color: var(--m-blue-lt); }
-
-@media print {
-  body * { visibility: hidden; }
-  #printArea, #printArea * { visibility: visible; }
-  #printArea {
-    position: fixed; top: 0; left: 0;
-    width: 100%; background: #fff;
-    color: #111; padding: 20mm;
-    font-family: 'Noto Sans TC', sans-serif;
-  }
-  .print-title {
-    font-size: 20pt; font-weight: 700;
-    border-bottom: 2px solid #111;
-    padding-bottom: 6pt; margin-bottom: 12pt;
-  }
-  .print-meta {
-    font-size: 9pt; color: #555;
-    margin-bottom: 16pt;
-  }
-  .print-chapter {
-    font-size: 12pt; font-weight: 700;
-    margin: 16pt 0 8pt;
-    border-left: 4pt solid #1C69D4;
-    padding-left: 8pt;
-  }
-  .print-article {
-    display: flex; gap: 12pt;
-    margin-bottom: 8pt;
-    page-break-inside: avoid;
-  }
-  .print-art-num {
-    font-size: 9pt; color: #1C69D4;
-    min-width: 56pt; flex-shrink: 0;
-    font-weight: 700;
-  }
-  .print-art-content {
-    font-size: 10pt; line-height: 1.8;
-    white-space: pre-line;
-  }
-  .print-hl-yellow { background: #FFF9C4; }
-  .print-hl-red    { background: #FFEBEE; }
-  .print-hl-blue   { background: #E3F2FD; }
-  .print-hl-green  { background: #E8F5E9; }
-}
 
 /* ============================================
    關鍵數字標記
