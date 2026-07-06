@@ -296,7 +296,7 @@
             <span class="tmi-icon">🌙</span>
             <div class="tmi-info">
               <div class="tmi-label">深色模式</div>
-              <div class="tmi-sub"> M Power </div>
+              <div class="tmi-sub">BMW M Power 風格</div>
             </div>
             <span class="tmi-check">✓</span>
           </div>
@@ -439,8 +439,14 @@
 
     <!-- Attachments section at bottom of modal -->
     <div class="modal-attach-section" id="modalAttachSection" style="display:none;">
-      <div class="modal-attach-title">📎 附件下載</div>
-      <div class="modal-attach-grid" id="modalAttachGrid"></div>
+      <div class="modal-attach-title" onclick="toggleAttachSection()" style="cursor:pointer;user-select:none;">
+        📎 附件下載
+        <span id="attachToggleArrow" style="font-size:11px;margin-left:6px;transition:transform 0.2s;display:inline-block;">›</span>
+        <span id="attachCount" style="font-size:11px;color:var(--m-grey);margin-left:4px;font-family:var(--font-mono);font-weight:400;"></span>
+      </div>
+      <div id="modalAttachBody" style="display:none;">
+        <div class="modal-attach-grid" id="modalAttachGrid"></div>
+      </div>
     </div>
 
     <!-- 法規更新時間軸 -->
@@ -483,7 +489,7 @@
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-logo">環評法律資料庫 // EIA Legal Database</div>
-    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with AC</div>
+    <div class="footer-copy">資料僅供參考，法律效力以官方公告為準 · Built with M Power</div>
   </div>
 </footer>
 
@@ -1262,11 +1268,25 @@ function isPreviewable(name, type) {
   const ext = (name||'').split('.').pop().toLowerCase();
   return ext === 'pdf' || (type||'').startsWith('image/') || ['jpg','jpeg','png','gif','webp'].includes(ext);
 }
+function toggleAttachSection() {
+  const body  = document.getElementById('modalAttachBody');
+  const arrow = document.getElementById('attachToggleArrow');
+  const open  = body.style.display === 'none';
+  body.style.display  = open ? 'block' : 'none';
+  arrow.style.transform = open ? 'rotate(90deg)' : '';
+}
+
 function renderModalAttachments(law) {
   const section = document.getElementById('modalAttachSection');
   const grid    = document.getElementById('modalAttachGrid');
   const metas   = law.attachments || [];
   if (!metas.length) { section.style.display = 'none'; return; }
+  const countEl = document.getElementById('attachCount');
+  const body    = document.getElementById('modalAttachBody');
+  const arrow   = document.getElementById('attachToggleArrow');
+  if (countEl) countEl.textContent   = metas.length + ' 個檔案';
+  if (body)    body.style.display    = 'none';
+  if (arrow)   arrow.style.transform = '';
   grid.innerHTML = '';
   metas.forEach(meta => {
     let data = null;
